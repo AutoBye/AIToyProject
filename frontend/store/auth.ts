@@ -20,23 +20,31 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: typeof window !== "undefined" ? localStorage.getItem("access_token") : null,
   async login(email, password) {
     set({ loading: true });
-    const data = await apiFetch<{ access_token: string }>("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
-    localStorage.setItem("access_token", data.access_token);
-    set({ token: data.access_token, loading: false });
-    await useAuthStore.getState().loadUser();
+    try {
+      const data = await apiFetch<{ access_token: string }>("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      localStorage.setItem("access_token", data.access_token);
+      set({ token: data.access_token });
+      await useAuthStore.getState().loadUser();
+    } finally {
+      set({ loading: false });
+    }
   },
   async register(email, password) {
     set({ loading: true });
-    const data = await apiFetch<{ access_token: string }>("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password })
-    });
-    localStorage.setItem("access_token", data.access_token);
-    set({ token: data.access_token, loading: false });
-    await useAuthStore.getState().loadUser();
+    try {
+      const data = await apiFetch<{ access_token: string }>("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ email, password })
+      });
+      localStorage.setItem("access_token", data.access_token);
+      set({ token: data.access_token });
+      await useAuthStore.getState().loadUser();
+    } finally {
+      set({ loading: false });
+    }
   },
   async loadUser() {
     const token = localStorage.getItem("access_token");

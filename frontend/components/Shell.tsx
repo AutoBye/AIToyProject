@@ -1,11 +1,12 @@
 "use client";
 
 import { Moon, Sun, LogOut } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth";
 import { Button } from "@/components/ui/Button";
 
-export function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState(false);
   const logout = useAuthStore((state) => state.logout);
 

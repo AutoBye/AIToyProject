@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { Activity, Bot, FileUp, History, Loader2, Send, WalletCards } from "lucide-react";
 import { AuthPanel } from "@/components/AuthPanel";
 import { CodeEditor } from "@/components/CodeEditor";
@@ -53,7 +54,7 @@ export default function Home() {
     setProjectId(project.id);
   }
 
-  async function onUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function onUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file || !projectId) return;
     setBusy(true);
@@ -167,7 +168,7 @@ export default function Home() {
   );
 }
 
-function Metric({ label, value, icon }: { label: string; value: number; icon?: React.ReactNode }) {
+function Metric({ label, value, icon }: { label: string; value: number; icon?: ReactNode }) {
   return (
     <div className="rounded-md border border-border p-3">
       <div className="flex items-center gap-1 text-xs text-slate-500">{icon}{label}</div>

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import current_user
 from app.core.database import get_session
@@ -18,7 +18,6 @@ async def upload_file(
 ) -> UploadResponse:
     project = await session.get(Project, project_id)
     if not project or project.user_id != user.id:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Project not found")
 
     path, size, digest, kind = await save_upload(file, str(user.id), project_id)
