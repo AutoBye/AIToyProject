@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: 210 24% 96%;
+  --panel: 0 0% 100%;
+  --border: 214 18% 84%;
+  --accent: 172 68% 36%;
+}
+
+.dark {
+  --surface: 220 14% 10%;
+  --panel: 220 13% 15%;
+  --border: 220 10% 28%;
+  --accent: 172 64% 44%;
+}
+
+body {
+  background: hsl(var(--surface));
+  color: #111827;
+}
+
+.dark body {
+  color: #f4f7fb;
+}
