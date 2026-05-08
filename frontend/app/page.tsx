@@ -42,6 +42,9 @@ const text = {
   pastePlaceholder: "\ubd84\uc11d\ud560 \ucf54\ub4dc \ub610\ub294 \ub85c\uadf8\ub97c \uc5ec\uae30\uc5d0 \ubd99\uc5ec\ub123\uc73c\uc138\uc694.",
   pasteSubmit: "\ubd99\uc5ec\ub123\uace0 \uc790\ub3d9 \ubd84\uc11d",
   pasteRequired: "\ubd99\uc5ec\ub123\uc740 \ub0b4\uc6a9\uc744 \uc785\ub825\ud574\uc57c \ud569\ub2c8\ub2e4.",
+  cancelUpload: "\uc5c5\ub85c\ub4dc/\ubd84\uc11d \ucde8\uc18c",
+  cancelComplete: "\uc5c5\ub85c\ub4dc\uc640 \ubd84\uc11d\uc744 \ucde8\uc18c\ud588\uc2b5\ub2c8\ub2e4.",
+  cancelFailed: "\ucde8\uc18c \uc694\uccad \ucc98\ub9ac \uc911 \uc77c\ubd80 \uc815\ub9ac\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.",
   noAnalysisChatHint: "\uba3c\uc800 \ubd84\uc11d\uc744 \uc2e4\ud589\ud558\uac70\ub098 \uae30\ub85d\uc5d0\uc11c \ubd84\uc11d\uc744 \uc120\ud0dd\ud558\uba74 AI \ub300\ud654\ub97c \ub0a8\uae38 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
   processing: "\ucc98\ub9ac \uc911\uc785\ub2c8\ub2e4",
   removeUpload: "\uc5c5\ub85c\ub4dc \ucde8\uc18c",
@@ -141,6 +144,9 @@ export default function Home() {
   const auth = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const chatHistoryRef = useRef<HTMLDivElement | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const activeUploadRef = useRef<Upload | null>(null);
+  const operationIdRef = useRef(0);
   const [mounted, setMounted] = useState(false);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -258,8 +264,22 @@ export default function Home() {
     setProjectName("");
   }
 
+  function beginUploadOperation(): { operationId: number; controller: AbortController } {
+    const controller = new AbortController();
+    const operationId = operationIdRef.current + 1;
+    operationIdRef.current = operationId;
+    abortControllerRef.current = controller;
+    activeUploadRef.current = null;
+    return { operationId, controller };
+  }
+
+  function isActiveOperation(operationId: number, signal?: AbortSignal): boolean {
+    return operationIdRef.current === operationId && !signal?.aborted;
+  }
+
   async function uploadFile(file: File | undefined) {
     if (!file || !projectId) return;
+    const { operationId, controller } = beginUploadOperation();
     setBusy(true);
     setActionStatus("uploading");
     setError("");
@@ -267,15 +287,22 @@ export default function Home() {
     form.set("project_id", projectId);
     form.set("file", file);
     try {
-      const uploaded = await apiFetch<Upload>("/api/uploads", { method: "POST", body: form });
+      const uploaded = await apiFetch<Upload>("/api/uploads", { method: "POST", body: form, signal: controller.signal });
+      if (!isActiveOperation(operationId, controller.signal)) return;
       setUpload(uploaded);
+      activeUploadRef.current = uploaded;
       if (fileInputRef.current) fileInputRef.current.value = "";
-      await executeAnalysis(uploaded, uploaded.kind);
+      await executeAnalysis(uploaded, uploaded.kind, operationId, controller.signal);
     } catch (exc) {
+      if (exc instanceof DOMException && exc.name === "AbortError") return;
       setError(exc instanceof Error ? exc.message : text.uploadFailed);
     } finally {
-      setBusy(false);
-      setActionStatus("idle");
+      if (isActiveOperation(operationId)) {
+        setBusy(false);
+        setActionStatus("idle");
+        abortControllerRef.current = null;
+        activeUploadRef.current = null;
+      }
     }
   }
 
@@ -286,22 +313,31 @@ export default function Home() {
       setError(text.pasteRequired);
       return;
     }
+    const { operationId, controller } = beginUploadOperation();
     setBusy(true);
     setActionStatus("uploading");
     setError("");
     try {
       const uploaded = await apiFetch<Upload>("/api/uploads/text", {
         method: "POST",
-        body: JSON.stringify({ project_id: projectId, kind: pasteKind, content })
+        body: JSON.stringify({ project_id: projectId, kind: pasteKind, content }),
+        signal: controller.signal
       });
+      if (!isActiveOperation(operationId, controller.signal)) return;
       setUpload(uploaded);
+      activeUploadRef.current = uploaded;
       setPasteContent("");
-      await executeAnalysis(uploaded, uploaded.kind);
+      await executeAnalysis(uploaded, uploaded.kind, operationId, controller.signal);
     } catch (exc) {
+      if (exc instanceof DOMException && exc.name === "AbortError") return;
       setError(exc instanceof Error ? exc.message : text.uploadFailed);
     } finally {
-      setBusy(false);
-      setActionStatus("idle");
+      if (isActiveOperation(operationId)) {
+        setBusy(false);
+        setActionStatus("idle");
+        abortControllerRef.current = null;
+        activeUploadRef.current = null;
+      }
     }
   }
 
@@ -326,10 +362,11 @@ export default function Home() {
     await uploadFile(event.dataTransfer.files?.[0]);
   }
 
-  async function executeAnalysis(targetUpload: Upload, kind: "code" | "log") {
+  async function executeAnalysis(targetUpload: Upload, kind: "code" | "log", operationId: number, signal: AbortSignal) {
     setActionStatus("analyzing");
     try {
-      const result = await apiFetch<Analysis>(`/api/analysis/${kind}`, { method: "POST", body: JSON.stringify({ upload_id: targetUpload.id }) });
+      const result = await apiFetch<Analysis>(`/api/analysis/${kind}`, { method: "POST", body: JSON.stringify({ upload_id: targetUpload.id }), signal });
+      if (!isActiveOperation(operationId, signal)) return;
       setAnalysis(result);
       setHistory((items) => [result, ...items.filter((item) => item.id !== result.id)]);
       localStorage.setItem(SELECTED_ANALYSIS_STORAGE_KEY, result.id);
@@ -343,16 +380,37 @@ export default function Home() {
       await refresh();
       await loadAnalysisHistory(result.project_id, result.id);
     } catch (exc) {
+      if (exc instanceof DOMException && exc.name === "AbortError") return;
       setError(exc instanceof Error ? exc.message : text.analysisFailed);
     }
   }
 
-  function clearUpload() {
+  async function clearUpload() {
+    const uploadToDelete = activeUploadRef.current ?? upload;
+    operationIdRef.current += 1;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    activeUploadRef.current = null;
     setUpload(null);
     setAnalysis(null);
+    setChatMessages([]);
     setAnswer("");
     setError("");
+    setBusy(false);
+    setActionStatus("idle");
+    localStorage.removeItem(SELECTED_ANALYSIS_STORAGE_KEY);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (uploadToDelete) {
+      try {
+        await apiFetch(`/api/uploads/${uploadToDelete.id}`, { method: "DELETE" });
+        setHistory((items) => items.filter((item) => item.upload_id !== uploadToDelete.id));
+      } catch {
+        setError(text.cancelFailed);
+        return;
+      }
+    }
+    setToast(text.cancelComplete);
+    window.setTimeout(() => setToast(""), 2500);
   }
 
   async function copyCodeBlock(code: string, index: number) {
@@ -483,6 +541,12 @@ export default function Home() {
                 <input ref={fileInputRef} type="file" className="hidden" disabled={!canUpload} onChange={onUpload} />
                 {text.upload}
               </label>
+              {(busy || upload) && (
+                <Button className="h-10 gap-2 bg-red-600 px-3 hover:bg-red-700" type="button" onClick={clearUpload}>
+                  <X size={16} />
+                  <span>{text.cancelUpload}</span>
+                </Button>
+              )}
             </div>
             {canUpload && <p className="mt-3 text-sm text-slate-500">{text.dropHint}</p>}
             {projectId && <p className="mt-2 text-sm text-slate-500">{text.autoAnalysisHint}</p>}
@@ -514,9 +578,9 @@ export default function Home() {
             {upload && (
               <div className="mt-3 flex flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-slate-500">{upload.file_name} / {kindLabel[upload.kind]} / {upload.size_bytes} bytes</p>
-                <Button className="h-8 gap-2 bg-slate-700 px-3" type="button" onClick={clearUpload}>
+                <Button className="h-8 gap-2 bg-red-600 px-3 hover:bg-red-700" type="button" onClick={clearUpload}>
                   <X size={15} />
-                  <span>{text.removeUpload}</span>
+                  <span>{text.cancelUpload}</span>
                 </Button>
               </div>
             )}

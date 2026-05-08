@@ -4,7 +4,7 @@ from app.api.dependencies import current_user
 from app.core.database import get_session
 from app.models.entities import Project, Upload, UploadKind, User
 from app.schemas.analysis import TextUploadRequest, UploadResponse
-from app.services.files import save_text_upload, save_upload
+from app.services.files import remove_stored_upload, save_text_upload, save_upload
 
 router = APIRouter()
 
@@ -35,6 +35,23 @@ async def upload_file(
     await session.commit()
     await session.refresh(upload)
     return UploadResponse(id=str(upload.id), project_id=str(upload.project_id), file_name=upload.file_name, kind=upload.kind.value, size_bytes=upload.size_bytes, sha256=upload.sha256)
+
+
+@router.delete("/{upload_id}")
+async def delete_upload(
+    upload_id: str,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    upload = await session.get(Upload, upload_id)
+    if not upload or upload.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    storage_path = upload.storage_path
+    await session.delete(upload)
+    await session.commit()
+    remove_stored_upload(storage_path)
+    return {"status": "deleted"}
 
 
 @router.post("/text", response_model=UploadResponse)

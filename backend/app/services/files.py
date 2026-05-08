@@ -59,6 +59,25 @@ def read_text_file(path: str) -> str:
     return Path(path).read_text(encoding="utf-8", errors="replace")
 
 
+def remove_stored_upload(path: str) -> None:
+    target = Path(path)
+    upload_root = Path(settings.upload_dir).resolve()
+    try:
+        resolved = target.resolve()
+    except OSError:
+        return
+    if upload_root not in resolved.parents and resolved != upload_root:
+        return
+    resolved.unlink(missing_ok=True)
+    for parent in resolved.parents:
+        if parent == upload_root:
+            break
+        try:
+            parent.rmdir()
+        except OSError:
+            break
+
+
 def save_text_upload(content: str, kind: str, user_id: str, project_id: str) -> tuple[str, int, str, str]:
     if kind not in {"code", "log"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="지원하지 않는 붙여넣기 유형입니다.")
