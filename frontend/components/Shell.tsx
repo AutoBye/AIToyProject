@@ -18,12 +18,12 @@ export function Shell({ children }: { children: ReactNode }) {
     <main className="min-h-screen bg-surface">
       <header className="sticky top-0 z-10 border-b border-border bg-panel/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-          <div className="text-sm font-bold tracking-wide">AI Code & Log Analyzer</div>
+          <div className="text-sm font-bold tracking-wide">AI 코드 및 로그 분석</div>
           <div className="flex items-center gap-2">
-            <Button className="h-9 w-9 px-0" title="Toggle theme" onClick={() => setDark((value) => !value)}>
+            <Button className="h-9 w-9 px-0" title="테마 전환" onClick={() => setDark((value) => !value)}>
               {dark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
-            <Button className="h-9 w-9 px-0 bg-slate-700" title="Log out" onClick={logout}>
+            <Button className="h-9 w-9 px-0 bg-slate-700" title="로그아웃" onClick={logout}>
               <LogOut size={18} />
             </Button>
           </div>

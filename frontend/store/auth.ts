@@ -17,7 +17,7 @@ type AuthState = {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: false,
-  token: typeof window !== "undefined" ? localStorage.getItem("access_token") : null,
+  token: null,
   async login(email, password) {
     set({ loading: true });
     try {
