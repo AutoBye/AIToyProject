@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Activity, Bot, FileUp, History, Loader2, Send, WalletCards, X } from "lucide-react";
+import { Activity, Bot, Check, Copy, FileUp, History, Loader2, Send, WalletCards, X } from "lucide-react";
 import { AuthPanel } from "@/components/AuthPanel";
 import { CodeEditor } from "@/components/CodeEditor";
 import { Shell } from "@/components/Shell";
@@ -18,18 +18,26 @@ const text = {
   assistant: "AI \uc5b4\uc2dc\uc2a4\ud134\ud2b8",
   chatPlaceholder: "\uc6d0\uc778, \ud574\uacb0 \ubc29\ubc95, \ub9ac\ud329\ud1a0\ub9c1 \ubc29\ud5a5\uc744 \uc9c8\ubb38\ud558\uc138\uc694...",
   chatHistory: "AI \ub300\ud654 \uae30\ub85d",
-  chatHistoryEmpty: "\uc544\uc9c1 \uc800\uc7a5\ub41c AI \ub300\ud654\uac00 \uc5c6\uc2b5\ub2c8\ub2e4.",
+  chatHistoryEmpty: "\uc774 \ubd84\uc11d\uc5d0 \uc800\uc7a5\ub41c AI \ub300\ud654\uac00 \uc544\uc9c1 \uc5c6\uc2b5\ub2c8\ub2e4.",
   code: "\ucf54\ub4dc",
   codeAnalysis: "\ucf54\ub4dc \ubd84\uc11d",
+  codeCopied: "\ubcf5\uc0ac\ub428",
+  codeCopy: "\ubcf5\uc0ac",
+  codeExample: "\ucf54\ub4dc \uc608\uc2dc",
+  codeLanguage: "\uc5b8\uc5b4",
+  improvedCode: "\uac1c\uc120/\uc218\uc815 \ucf54\ub4dc",
+  improvedCodeHint: "AI \ubd84\uc11d \uacb0\uacfc\uc5d0\uc11c \uac10\uc9c0\ub41c \ucf54\ub4dc \ube14\ub85d\uc785\ub2c8\ub2e4. \ud544\uc694\ud55c \ucf54\ub4dc\ub97c \ubcf5\uc0ac\ud574 \uc0ac\uc6a9\ud558\uc138\uc694.",
   dashboard: "\ub300\uc2dc\ubcf4\ub4dc",
   failed: "\uc2e4\ud328",
   history: "\ubd84\uc11d \uae30\ub85d",
   log: "\ub85c\uadf8",
   logAnalysis: "\ub85c\uadf8 \ubd84\uc11d",
   noProjectHint: "\uba3c\uc800 \ud504\ub85c\uc81d\ud2b8\ub97c \uc0dd\uc131\ud558\uac70\ub098 \uc120\ud0dd\ud55c \ub4a4 \ud30c\uc77c\uc744 \uc5c5\ub85c\ub4dc\ud558\uc138\uc694.",
+  noAnalysisChatHint: "\uba3c\uc800 \ubd84\uc11d\uc744 \uc2e4\ud589\ud558\uac70\ub098 \uae30\ub85d\uc5d0\uc11c \ubd84\uc11d\uc744 \uc120\ud0dd\ud558\uba74 AI \ub300\ud654\ub97c \ub0a8\uae38 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
   processing: "\ucc98\ub9ac \uc911\uc785\ub2c8\ub2e4",
   removeUpload: "\uc5c5\ub85c\ub4dc \ucde8\uc18c",
-  projectDefault: "\uc6b4\uc601 API",
+  projectNameRequired: "\ud504\ub85c\uc81d\ud2b8 \uc774\ub984\uc744 \uc785\ub825\ud574\uc57c \ud569\ub2c8\ub2e4.",
+  projectNamePlaceholder: "\ud504\ub85c\uc81d\ud2b8 \uc774\ub984",
   projectSelect: "\ud504\ub85c\uc81d\ud2b8 \uc120\ud0dd",
   projectCreate: "\ud504\ub85c\uc81d\ud2b8 \uc0dd\uc131",
   projects: "\ud504\ub85c\uc81d\ud2b8",
@@ -46,6 +54,27 @@ const text = {
   uploads: "\uc5c5\ub85c\ub4dc"
 };
 
+type CodeBlock = {
+  language: string;
+  code: string;
+};
+
+function extractCodeBlocks(markdown?: string): CodeBlock[] {
+  if (!markdown) return [];
+  const blocks: CodeBlock[] = [];
+  const fencePattern = /```([a-zA-Z0-9_+.-]*)\n([\s\S]*?)```/g;
+  let match: RegExpExecArray | null;
+  while ((match = fencePattern.exec(markdown)) !== null) {
+    const code = match[2].trim();
+    if (!code) continue;
+    blocks.push({
+      language: match[1] || "text",
+      code
+    });
+  }
+  return blocks;
+}
+
 const kindLabel: Record<Analysis["kind"] | Upload["kind"], string> = {
   code: text.code,
   log: text.log
@@ -61,11 +90,13 @@ const statusLabel: Record<Analysis["status"], string> = {
 export default function Home() {
   const auth = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const chatHistoryRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
-  const [projectName, setProjectName] = useState(text.projectDefault);
+  const [projectName, setProjectName] = useState("");
+  const [projectError, setProjectError] = useState("");
   const [upload, setUpload] = useState<Upload | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [history, setHistory] = useState<Analysis[]>([]);
@@ -74,8 +105,10 @@ export default function Home() {
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
 
   const canUpload = Boolean(projectId) && !busy;
+  const codeBlocks = useMemo(() => extractCodeBlocks(analysis?.result.markdown), [analysis?.result.markdown]);
 
   useEffect(() => {
     setMounted(true);
@@ -89,34 +122,64 @@ export default function Home() {
 
   useEffect(() => {
     if (!auth.token || !projectId) {
+      setHistory([]);
+      setAnalysis(null);
+      setUpload(null);
+      return;
+    }
+    loadAnalysisHistory(projectId).catch((exc) => setError(exc.message));
+    setAnalysis(null);
+    setUpload(null);
+    setAnswer("");
+  }, [auth.token, projectId]);
+
+  useEffect(() => {
+    if (!auth.token || !projectId || !analysis?.id) {
       setChatMessages([]);
       return;
     }
-    loadChatHistory(projectId).catch((exc) => setError(exc.message));
-  }, [auth.token, projectId]);
+    loadChatHistory(projectId, analysis.id).catch((exc) => setError(exc.message));
+  }, [auth.token, projectId, analysis?.id]);
+
+  useEffect(() => {
+    chatHistoryRef.current?.scrollTo({
+      top: chatHistoryRef.current.scrollHeight,
+      behavior: "smooth"
+    });
+  }, [chatMessages.length, answer]);
 
   async function refresh() {
-    const [dashboardData, projectData, historyData] = await Promise.all([
+    const [dashboardData, projectData] = await Promise.all([
       apiFetch<Dashboard>("/api/projects/dashboard"),
-      apiFetch<Project[]>("/api/projects"),
-      apiFetch<Analysis[]>("/api/analysis/history")
+      apiFetch<Project[]>("/api/projects")
     ]);
     setDashboard(dashboardData);
     setProjects(projectData);
-    setHistory(historyData);
     if (!projectId && projectData[0]) setProjectId(projectData[0].id);
   }
 
-  async function loadChatHistory(targetProjectId: string) {
-    const messages = await apiFetch<ChatMessage[]>(`/api/analysis/chat/history?project_id=${targetProjectId}`);
+  async function loadAnalysisHistory(targetProjectId: string) {
+    const items = await apiFetch<Analysis[]>(`/api/analysis/history?project_id=${targetProjectId}`);
+    setHistory(items);
+  }
+
+  async function loadChatHistory(targetProjectId: string, targetAnalysisId: string) {
+    const messages = await apiFetch<ChatMessage[]>(`/api/analysis/chat/history?project_id=${targetProjectId}&analysis_id=${targetAnalysisId}`);
     setChatMessages(messages);
   }
 
   async function createProject(event: FormEvent) {
     event.preventDefault();
-    const project = await apiFetch<Project>("/api/projects", { method: "POST", body: JSON.stringify({ name: projectName }) });
+    const name = projectName.trim();
+    if (!name) {
+      setProjectError(text.projectNameRequired);
+      return;
+    }
+    setProjectError("");
+    const project = await apiFetch<Project>("/api/projects", { method: "POST", body: JSON.stringify({ name }) });
     setProjects((items) => [project, ...items]);
     setProjectId(project.id);
+    setProjectName("");
   }
 
   async function onUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -144,10 +207,11 @@ export default function Home() {
     try {
       const result = await apiFetch<Analysis>(`/api/analysis/${kind}`, { method: "POST", body: JSON.stringify({ upload_id: upload.id }) });
       setAnalysis(result);
+      setChatMessages([]);
       if (result.status === "failed") {
         setError(result.error_message ?? text.analysisFailed);
       }
-      await refresh();
+      await Promise.all([refresh(), loadAnalysisHistory(result.project_id)]);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : text.analysisFailed);
     } finally {
@@ -163,9 +227,15 @@ export default function Home() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  async function copyCodeBlock(code: string, index: number) {
+    await navigator.clipboard.writeText(code);
+    setCopiedCodeIndex(index);
+    window.setTimeout(() => setCopiedCodeIndex(null), 1600);
+  }
+
   async function sendChat(event: FormEvent) {
     event.preventDefault();
-    if (!projectId || !chat.trim()) return;
+    if (!projectId || !analysis?.id || !chat.trim()) return;
     const question = chat;
     setAnswer("");
     setChat("");
@@ -173,7 +243,7 @@ export default function Home() {
       ...messages,
       {
         id: `local-user-${Date.now()}`,
-        analysis_id: analysis?.id ?? null,
+        analysis_id: analysis.id,
         project_id: projectId,
         role: "user",
         content: question,
@@ -181,7 +251,7 @@ export default function Home() {
       }
     ]);
     let collected = "";
-    await streamChat({ project_id: projectId, analysis_id: analysis?.id, message: question }, (chunk) => {
+    await streamChat({ project_id: projectId, analysis_id: analysis.id, message: question }, (chunk) => {
       collected += chunk;
       setAnswer((value) => value + chunk);
     });
@@ -189,14 +259,14 @@ export default function Home() {
       ...messages,
       {
         id: `local-assistant-${Date.now()}`,
-        analysis_id: analysis?.id ?? null,
+        analysis_id: analysis.id,
         project_id: projectId,
         role: "assistant",
         content: collected,
         created_at: new Date().toISOString()
       }
     ]);
-    await loadChatHistory(projectId);
+    await loadChatHistory(projectId, analysis.id);
   }
 
   if (!mounted) return <main className="min-h-screen bg-surface" />;
@@ -218,9 +288,17 @@ export default function Home() {
 
           <section className="rounded-lg border border-border bg-panel p-4">
             <form onSubmit={createProject} className="space-y-3">
-              <Input value={projectName} onChange={(event) => setProjectName(event.target.value)} />
+              <Input
+                value={projectName}
+                onChange={(event) => {
+                  setProjectName(event.target.value);
+                  if (projectError) setProjectError("");
+                }}
+                placeholder={text.projectNamePlaceholder}
+              />
               <Button className="w-full">{text.projectCreate}</Button>
             </form>
+            {projectError && <p className="mt-2 text-sm text-red-500">{projectError}</p>}
             <select className="mt-3 h-10 w-full rounded-md border border-border bg-panel px-3 text-sm" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
               <option value="">{text.projectSelect}</option>
               {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
@@ -274,31 +352,68 @@ export default function Home() {
 
           <CodeEditor value={analysis?.result.markdown ?? text.readyHint} />
 
-          <form onSubmit={sendChat} className="rounded-lg border border-border bg-panel p-4">
+          {codeBlocks.length > 0 && (
+            <section className="rounded-lg border border-border bg-panel p-4">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold">{text.improvedCode}</h2>
+                  <p className="mt-1 text-xs text-slate-500">{text.improvedCodeHint}</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {codeBlocks.map((block, index) => (
+                  <div key={`${block.language}-${index}`} className="overflow-hidden rounded-md border border-border bg-surface">
+                    <div className="flex items-center justify-between border-b border-border px-3 py-2 text-xs text-slate-500">
+                      <span>{text.codeExample} {index + 1} / {text.codeLanguage}: {block.language}</span>
+                      <Button className="h-8 gap-2 bg-slate-700 px-3" type="button" onClick={() => copyCodeBlock(block.code, index)}>
+                        {copiedCodeIndex === index ? <Check size={15} /> : <Copy size={15} />}
+                        <span>{copiedCodeIndex === index ? text.codeCopied : text.codeCopy}</span>
+                      </Button>
+                    </div>
+                    <pre className="max-h-80 overflow-auto p-3 text-xs leading-5">
+                      <code>{block.code}</code>
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+        </section>
+
+        <aside className="flex flex-col rounded-lg border border-border bg-panel p-4 xl:ml-auto xl:w-[300px]">
+          <form onSubmit={sendChat} className="border-b border-border pb-4">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Bot size={16} /> {text.assistant}</h2>
-            <div className="flex gap-2">
-              <Input value={chat} onChange={(event) => setChat(event.target.value)} placeholder={text.chatPlaceholder} />
-              <Button className="h-10 min-w-24 shrink-0 gap-2 px-4 text-sm" title={text.send}>
+            {!analysis?.id && <p className="mb-3 rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.noAnalysisChatHint}</p>}
+            <div className="space-y-2">
+              <Input disabled={!analysis?.id} value={chat} onChange={(event) => setChat(event.target.value)} placeholder={text.chatPlaceholder} />
+              <Button disabled={!analysis?.id || !chat.trim()} className="h-10 w-full gap-2 px-4 text-sm" title={text.send}>
                 <Send size={22} />
                 <span className="whitespace-nowrap">{text.send}</span>
               </Button>
             </div>
-            {answer && <pre className="mt-3 whitespace-pre-wrap rounded-md bg-surface p-3 text-sm">{answer}</pre>}
           </form>
-        </section>
 
-        <aside className="rounded-lg border border-border bg-panel p-4 xl:ml-auto xl:w-[300px]">
-          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Bot size={16} /> {text.chatHistory}</h2>
-          <div className="max-h-[720px] space-y-3 overflow-y-auto pr-1">
-            {chatMessages.length === 0 && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.chatHistoryEmpty}</p>}
-            {chatMessages.map((message) => (
-              <div key={message.id} className="rounded-md border border-border bg-surface p-3 text-sm">
-                <div className="mb-1 text-xs font-semibold text-slate-500">
-                  {message.role === "user" ? text.senderUser : text.senderAssistant}
+          <div className="mt-4 flex min-h-0 flex-1 flex-col">
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Bot size={16} /> {text.chatHistory}</h2>
+            <div ref={chatHistoryRef} className="max-h-[660px] space-y-3 overflow-y-auto pr-1">
+              {!analysis?.id && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.noAnalysisChatHint}</p>}
+              {analysis?.id && chatMessages.length === 0 && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.chatHistoryEmpty}</p>}
+              {chatMessages.map((message) => (
+                <div key={message.id} className="rounded-md border border-border bg-surface p-3 text-sm">
+                  <div className="mb-1 text-xs font-semibold text-slate-500">
+                    {message.role === "user" ? text.senderUser : text.senderAssistant}
+                  </div>
+                  <p className="whitespace-pre-wrap leading-6">{message.content}</p>
                 </div>
-                <p className="whitespace-pre-wrap leading-6">{message.content}</p>
-              </div>
-            ))}
+              ))}
+              {answer && (
+                <div className="rounded-md border border-border bg-surface p-3 text-sm">
+                  <div className="mb-1 text-xs font-semibold text-slate-500">{text.senderAssistant}</div>
+                  <p className="whitespace-pre-wrap leading-6">{answer}</p>
+                </div>
+              )}
+            </div>
           </div>
         </aside>
       </div>

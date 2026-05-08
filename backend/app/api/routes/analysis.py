@@ -93,8 +93,15 @@ async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSess
 
 
 @router.get("/history", response_model=list[AnalysisResponse])
-async def history(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)) -> list[AnalysisResponse]:
-    rows = (await session.scalars(select(Analysis).where(Analysis.user_id == user.id).order_by(desc(Analysis.created_at)).limit(50))).all()
+async def history(
+    project_id: str | None = Query(default=None),
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[AnalysisResponse]:
+    query = select(Analysis).where(Analysis.user_id == user.id)
+    if project_id:
+        query = query.where(Analysis.project_id == project_id)
+    rows = (await session.scalars(query.order_by(desc(Analysis.created_at)).limit(50))).all()
     return [to_response(row) for row in rows]
 
 
