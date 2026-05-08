@@ -2,7 +2,7 @@
 
 import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Activity, Bot, Check, Copy, FileUp, History, Loader2, Send, WalletCards, X, ArrowDownToLine } from "lucide-react";
+import { Activity, Bot, FileUp, History, Loader2, Send, WalletCards, X, ArrowDownToLine } from "lucide-react";
 import { AuthPanel } from "@/components/AuthPanel";
 import { CodeEditor } from "@/components/CodeEditor";
 import { Shell } from "@/components/Shell";
@@ -165,16 +165,9 @@ export default function Home() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [pasteKind, setPasteKind] = useState<"code" | "log">("code");
   const [pasteContent, setPasteContent] = useState("");
-  const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
   const [toast, setToast] = useState("");
 
   const canUpload = Boolean(projectId) && !busy;
-  const codeBlocks = useMemo(() => {
-    const analysisBlocks = extractCodeBlocks(analysis?.result.markdown);
-    const chatBlocks = chatMessages.flatMap((message) => message.role === "assistant" ? extractCodeBlocks(message.content) : []);
-    const streamingBlocks = extractCodeBlocks(answer);
-    return [...analysisBlocks, ...chatBlocks, ...streamingBlocks];
-  }, [analysis?.result.markdown, answer, chatMessages]);
 
   useEffect(() => {
     setMounted(true);
@@ -413,12 +406,6 @@ export default function Home() {
     window.setTimeout(() => setToast(""), 2500);
   }
 
-  async function copyCodeBlock(code: string, index: number) {
-    await navigator.clipboard.writeText(code);
-    setCopiedCodeIndex(index);
-    window.setTimeout(() => setCopiedCodeIndex(null), 1600);
-  }
-
   function scrollChatHistoryToBottom() {
     chatHistoryRef.current?.scrollTo({
       top: chatHistoryRef.current.scrollHeight,
@@ -500,8 +487,8 @@ export default function Home() {
 
           <section className="rounded-lg border border-border bg-panel p-4">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History size={16} /> {text.history}</h2>
-            <div className="space-y-2">
-              {history.slice(0, 8).map((item) => (
+            <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              {history.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => {
@@ -517,8 +504,14 @@ export default function Home() {
                   <div className="mt-1 truncate text-slate-500">{readableAnalysisSummary(item)}</div>
                 </button>
               ))}
+              {history.length === 0 && (
+                <p className="rounded-md border border-border bg-surface p-3 text-xs text-slate-500">
+                  분석 기록이 아직 없습니다.
+                </p>
+              )}
             </div>
           </section>
+
         </aside>
 
         <section className="space-y-4">
@@ -596,36 +589,9 @@ export default function Home() {
 
           <CodeEditor value={analysis?.result.markdown ?? text.readyHint} />
 
-          {codeBlocks.length > 0 && (
-            <section className="rounded-lg border border-border bg-panel p-4">
-              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold">{text.improvedCode}</h2>
-                  <p className="mt-1 text-xs text-slate-500">{text.improvedCodeHint}</p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {codeBlocks.map((block, index) => (
-                  <div key={`${block.language}-${index}`} className="overflow-hidden rounded-md border border-border bg-surface">
-                    <div className="flex items-center justify-between border-b border-border px-3 py-2 text-xs text-slate-500">
-                      <span>{text.codeExample} {index + 1} / {text.codeLanguage}: {block.language}</span>
-                      <Button className="h-8 gap-2 bg-slate-700 px-3" type="button" onClick={() => copyCodeBlock(block.code, index)}>
-                        {copiedCodeIndex === index ? <Check size={15} /> : <Copy size={15} />}
-                        <span>{copiedCodeIndex === index ? text.codeCopied : text.codeCopy}</span>
-                      </Button>
-                    </div>
-                    <pre className="max-h-80 overflow-auto p-3 text-xs leading-5">
-                      <code>{block.code}</code>
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
         </section>
 
-        <aside className="flex flex-col rounded-lg border border-border bg-panel p-4 xl:ml-auto xl:w-[300px]">
+        <aside className="flex flex-col self-start rounded-lg border border-border bg-panel p-4 xl:sticky xl:top-20 xl:ml-auto xl:h-[calc(100vh-6rem)] xl:w-[300px]">
           <form onSubmit={sendChat} className="border-b border-border pb-4">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Bot size={16} /> {text.assistant}</h2>
             {!analysis?.id && <p className="mb-3 rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.noAnalysisChatHint}</p>}
@@ -646,7 +612,7 @@ export default function Home() {
                 <span>{text.chatScrollBottom}</span>
               </Button>
             </div>
-            <div ref={chatHistoryRef} className="max-h-[660px] space-y-3 overflow-y-auto pr-1">
+            <div ref={chatHistoryRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
               {!analysis?.id && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.noAnalysisChatHint}</p>}
               {analysis?.id && chatMessages.length === 0 && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.chatHistoryEmpty}</p>}
               {chatMessages.map((message) => (
