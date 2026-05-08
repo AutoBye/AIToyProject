@@ -576,12 +576,8 @@ export default function Home() {
               </Button>
             </div>
             {upload && (
-              <div className="mt-3 flex flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-3 rounded-md border border-border bg-surface p-3 text-sm">
                 <p className="text-slate-500">{upload.file_name} / {kindLabel[upload.kind]} / {upload.size_bytes} bytes</p>
-                <Button className="h-8 gap-2 bg-red-600 px-3 hover:bg-red-700" type="button" onClick={clearUpload}>
-                  <X size={15} />
-                  <span>{text.cancelUpload}</span>
-                </Button>
               </div>
             )}
             {busy && <p className="mt-3 flex items-center gap-2 text-sm"><Loader2 className="animate-spin" size={16} /> {text.processing}</p>}
