@@ -1,20 +1,28 @@
+import hashlib
 from datetime import datetime, timedelta, timezone
+import bcrypt
 from jose import jwt
-from passlib.context import CryptContext
 from app.core.config import settings
 
 
-# bcrypt는 원본 비밀번호를 72바이트까지만 처리합니다.
-# bcrypt_sha256은 먼저 SHA-256으로 정규화한 뒤 bcrypt를 적용해 긴 비밀번호도 안전하게 처리합니다.
-pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
+PASSWORD_HASH_PREFIX = "bcrypt_sha256$"
+
+
+def _normalize_password(password: str) -> bytes:
+    # bcrypt는 입력을 72바이트까지만 처리하므로 먼저 SHA-256 digest로 고정 길이 정규화합니다.
+    return hashlib.sha256(password.encode("utf-8")).digest()
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    hashed = bcrypt.hashpw(_normalize_password(password), bcrypt.gensalt())
+    return f"{PASSWORD_HASH_PREFIX}{hashed.decode('utf-8')}"
 
 
 def verify_password(password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(password, hashed_password)
+    if not hashed_password.startswith(PASSWORD_HASH_PREFIX):
+        return False
+    stored_hash = hashed_password.removeprefix(PASSWORD_HASH_PREFIX).encode("utf-8")
+    return bcrypt.checkpw(_normalize_password(password), stored_hash)
 
 
 def create_access_token(subject: str) -> str:
