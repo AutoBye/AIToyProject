@@ -39,6 +39,7 @@ backend/app/services/prompts.py
 - Go
 - Rust
 - SQL
+- C/C++
 
 ## 분석 항목
 
