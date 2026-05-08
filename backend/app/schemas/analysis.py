@@ -10,6 +10,7 @@ class AnalysisResponse(BaseModel):
     id: str
     project_id: str
     upload_id: str
+    upload_file_name: str | None = None
     kind: str
     status: str
     severity: str | None = None

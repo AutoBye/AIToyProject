@@ -26,7 +26,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <div className="text-sm font-bold tracking-wide">{appTitle}</div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
-              className="h-9 gap-2 rounded-md border border-border bg-panel px-3 text-slate-800 hover:bg-surface dark:text-slate-100"
+              className="h-9 gap-2 rounded-md border border-slate-900 bg-slate-900 px-3 text-white shadow-sm hover:bg-slate-800 dark:border-amber-200 dark:bg-amber-200 dark:text-slate-950 dark:hover:bg-amber-100"
               title={themeTitle}
               onClick={() => setDark((value) => !value)}
             >

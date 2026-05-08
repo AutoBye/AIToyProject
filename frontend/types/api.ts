@@ -24,6 +24,7 @@ export type Analysis = {
   id: string;
   project_id: string;
   upload_id: string;
+  upload_file_name?: string | null;
   kind: "code" | "log";
   status: "queued" | "running" | "completed" | "failed";
   severity?: string | null;

@@ -37,9 +37,10 @@ const text = {
   logAnalysis: "\ub85c\uadf8 \ubd84\uc11d",
   noProjectHint: "\uba3c\uc800 \ud504\ub85c\uc81d\ud2b8\ub97c \uc0dd\uc131\ud558\uac70\ub098 \uc120\ud0dd\ud55c \ub4a4 \ud30c\uc77c\uc744 \uc5c5\ub85c\ub4dc\ud558\uc138\uc694.",
   dropHint: "\ud30c\uc77c\uc744 \uc5ec\uae30\uc5d0 \ub4dc\ub798\uadf8\ud574 \uc5c5\ub85c\ub4dc\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
+  autoAnalysisHint: "\uc5c5\ub85c\ub4dc \ub610\ub294 \ubd99\uc5ec\ub123\uae30 \uc644\ub8cc \ud6c4 \uc790\ub3d9\uc73c\ub85c \ubd84\uc11d\uc774 \uc2dc\uc791\ub429\ub2c8\ub2e4.",
   pasteContent: "\ucf54\ub4dc/\ub85c\uadf8 \ubd99\uc5ec\ub123\uae30",
   pastePlaceholder: "\ubd84\uc11d\ud560 \ucf54\ub4dc \ub610\ub294 \ub85c\uadf8\ub97c \uc5ec\uae30\uc5d0 \ubd99\uc5ec\ub123\uc73c\uc138\uc694.",
-  pasteSubmit: "\ubd99\uc5ec\ub123\uae30 \uc5c5\ub85c\ub4dc",
+  pasteSubmit: "\ubd99\uc5ec\ub123\uace0 \uc790\ub3d9 \ubd84\uc11d",
   pasteRequired: "\ubd99\uc5ec\ub123\uc740 \ub0b4\uc6a9\uc744 \uc785\ub825\ud574\uc57c \ud569\ub2c8\ub2e4.",
   noAnalysisChatHint: "\uba3c\uc800 \ubd84\uc11d\uc744 \uc2e4\ud589\ud558\uac70\ub098 \uae30\ub85d\uc5d0\uc11c \ubd84\uc11d\uc744 \uc120\ud0dd\ud558\uba74 AI \ub300\ud654\ub97c \ub0a8\uae38 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
   processing: "\ucc98\ub9ac \uc911\uc785\ub2c8\ub2e4",
@@ -49,7 +50,7 @@ const text = {
   projectSelect: "\ud504\ub85c\uc81d\ud2b8 \uc120\ud0dd",
   projectCreate: "\ud504\ub85c\uc81d\ud2b8 \uc0dd\uc131",
   projects: "\ud504\ub85c\uc81d\ud2b8",
-  readyHint: "\uc18c\uc2a4 \ucf54\ub4dc \ub610\ub294 \uc11c\ubc84 \ub85c\uadf8\ub97c \uc5c5\ub85c\ub4dc\ud55c \ub4a4 \ubd84\uc11d\uc744 \uc2e4\ud589\ud558\uc138\uc694.",
+  readyHint: "\uc18c\uc2a4 \ucf54\ub4dc \ub610\ub294 \uc11c\ubc84 \ub85c\uadf8\ub97c \uc5c5\ub85c\ub4dc\ud558\uac70\ub098 \ubd99\uc5ec\ub123\uc73c\uba74 \uc790\ub3d9\uc73c\ub85c \ubd84\uc11d\uc774 \uc2dc\uc791\ub429\ub2c8\ub2e4.",
   send: "\uc804\uc1a1",
   senderAssistant: "AI",
   senderUser: "\ub098",
@@ -95,6 +96,43 @@ const statusLabel: Record<Analysis["status"], string> = {
   completed: text.statusCompleted,
   failed: text.failed
 };
+
+const genericSummaryLabels = new Set(["개요", "요약", "문제점", "권장 수정 사항", "권장 조치", "근본 원인"]);
+
+function cleanSummaryLine(line: string): string {
+  return line
+    .replace(/^#{1,6}\s*/, "")
+    .replace(/^[-*]\s*/, "")
+    .replace(/^\d+[.)]\s*/, "")
+    .replace(/\*\*/g, "")
+    .replace(/`/g, "")
+    .trim();
+}
+
+function readableAnalysisSummary(item: Analysis): string {
+  if (item.status === "failed" && item.error_message) return item.error_message;
+  const markdown = typeof item.result.markdown === "string" ? item.result.markdown : "";
+  const candidates = [item.summary ?? "", ...markdown.split(/\r?\n/)];
+  let inCodeBlock = false;
+  for (const rawLine of candidates) {
+    const trimmed = rawLine.trim();
+    if (trimmed.startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
+    const line = cleanSummaryLine(trimmed);
+    if (!line || genericSummaryLabels.has(line)) continue;
+    if (line.length < 8) continue;
+    return line.length > 120 ? `${line.slice(0, 120)}...` : line;
+  }
+  return item.id;
+}
+
+function readableAnalysisTitle(item: Analysis): string {
+  const source = item.upload_file_name?.trim() || kindLabel[item.kind];
+  return `${source} ${statusLabel[item.status]}`;
+}
 
 const SELECTED_PROJECT_STORAGE_KEY = "selected_project_id";
 const SELECTED_ANALYSIS_STORAGE_KEY = "selected_analysis_id";
@@ -288,19 +326,6 @@ export default function Home() {
     await uploadFile(event.dataTransfer.files?.[0]);
   }
 
-  async function runAnalysis(kind: "code" | "log") {
-    if (!upload) return;
-    setBusy(true);
-    setActionStatus("analyzing");
-    setError("");
-    try {
-      await executeAnalysis(upload, kind);
-    } finally {
-      setBusy(false);
-      setActionStatus("idle");
-    }
-  }
-
   async function executeAnalysis(targetUpload: Upload, kind: "code" | "log") {
     setActionStatus("analyzing");
     try {
@@ -427,8 +452,11 @@ export default function Home() {
                   }}
                   className="w-full rounded-md border border-border p-2 text-left text-xs hover:bg-surface"
                 >
-                  <span className="font-semibold">{kindLabel[item.kind]}</span> {statusLabel[item.status]}
-                  <div className="truncate text-slate-500">{item.summary ?? item.id}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate font-semibold">{readableAnalysisTitle(item)}</span>
+                    {item.severity && <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[11px] text-slate-500">{item.severity}</span>}
+                  </div>
+                  <div className="mt-1 truncate text-slate-500">{readableAnalysisSummary(item)}</div>
                 </button>
               ))}
             </div>
@@ -455,12 +483,9 @@ export default function Home() {
                 <input ref={fileInputRef} type="file" className="hidden" disabled={!canUpload} onChange={onUpload} />
                 {text.upload}
               </label>
-              <div className="flex gap-2">
-                <Button disabled={!upload || busy} onClick={() => runAnalysis("code")}>{text.codeAnalysis}</Button>
-                <Button disabled={!upload || busy} onClick={() => runAnalysis("log")} className="bg-slate-700">{text.logAnalysis}</Button>
-              </div>
             </div>
             {canUpload && <p className="mt-3 text-sm text-slate-500">{text.dropHint}</p>}
+            {projectId && <p className="mt-2 text-sm text-slate-500">{text.autoAnalysisHint}</p>}
             {!projectId && <p className="mt-3 text-sm text-amber-600 dark:text-amber-300">{text.noProjectHint}</p>}
             <div className="mt-4 rounded-md border border-border bg-surface p-3">
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

@@ -17,6 +17,7 @@ from app.services.prompts import CHAT_PROMPT, build_analysis_prompt
 router = APIRouter()
 
 KIND_LABELS = {"code": "코드", "log": "로그"}
+GENERIC_SUMMARY_LABELS = {"개요", "요약", "문제점", "권장 수정 사항", "권장 조치", "근본 원인"}
 
 
 def analysis_failure_message(exc: Exception) -> str:
@@ -25,12 +26,43 @@ def analysis_failure_message(exc: Exception) -> str:
     return "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도하세요."
 
 
+def clean_summary_line(line: str) -> str:
+    line = line.strip().strip("`").replace("**", "")
+    while line.startswith("#"):
+        line = line[1:].strip()
+    for marker in ("- ", "* "):
+        if line.startswith(marker):
+            line = line[len(marker):].strip()
+    if len(line) > 3 and line[0].isdigit() and line[1] in {".", ")"}:
+        line = line[2:].strip()
+    return line
+
+
+def summary_from_markdown(content: str) -> str | None:
+    in_code_block = False
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if line.startswith("```"):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
+            continue
+        cleaned = clean_summary_line(line)
+        if not cleaned or cleaned in GENERIC_SUMMARY_LABELS:
+            continue
+        if len(cleaned) < 8:
+            continue
+        return cleaned[:500]
+    return None
+
+
 # ORM 엔티티를 API 응답 스키마로 변환해 라우트마다 반복되는 직렬화 코드를 줄입니다.
-def to_response(row: Analysis) -> AnalysisResponse:
+def to_response(row: Analysis, upload_file_name: str | None = None) -> AnalysisResponse:
     return AnalysisResponse(
         id=str(row.id),
         project_id=str(row.project_id),
         upload_id=str(row.upload_id),
+        upload_file_name=upload_file_name,
         kind=row.kind.value,
         status=row.status.value,
         severity=row.severity,
@@ -75,7 +107,7 @@ async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSess
             prompt,
         )
         analysis.status = AnalysisStatus.completed
-        analysis.summary = content.splitlines()[0][:500] if content else None
+        analysis.summary = summary_from_markdown(content) if content else None
         analysis.result = {"markdown": content}
         analysis.completed_at = datetime.now(timezone.utc)
         # 모델 사용량은 비용 최적화와 사용자별 사용량 제한의 기준 데이터입니다.
@@ -89,7 +121,7 @@ async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSess
         analysis.completed_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(analysis)
-    return to_response(analysis)
+    return to_response(analysis, upload.file_name)
 
 
 @router.get("/history", response_model=list[AnalysisResponse])
@@ -98,11 +130,11 @@ async def history(
     user: User = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[AnalysisResponse]:
-    query = select(Analysis).where(Analysis.user_id == user.id)
+    query = select(Analysis, Upload.file_name).join(Upload, Upload.id == Analysis.upload_id).where(Analysis.user_id == user.id)
     if project_id:
         query = query.where(Analysis.project_id == project_id)
-    rows = (await session.scalars(query.order_by(desc(Analysis.created_at)).limit(50))).all()
-    return [to_response(row) for row in rows]
+    rows = (await session.execute(query.order_by(desc(Analysis.created_at)).limit(50))).all()
+    return [to_response(row, upload_file_name) for row, upload_file_name in rows]
 
 
 @router.get("/chat/history", response_model=list[ChatMessageResponse])

@@ -51,7 +51,7 @@ async def upload_text(
     upload = Upload(
         project_id=project.id,
         user_id=user.id,
-        file_name="붙여넣기 코드" if kind == "code" else "붙여넣기 로그",
+        file_name="붙여넣은 코드" if kind == "code" else "붙여넣은 로그",
         content_type="text/plain",
         kind=UploadKind(kind),
         size_bytes=size,
