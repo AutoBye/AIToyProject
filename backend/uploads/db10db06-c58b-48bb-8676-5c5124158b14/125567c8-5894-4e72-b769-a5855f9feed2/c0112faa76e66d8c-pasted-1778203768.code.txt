@@ -1,0 +1,82 @@
+#include <iostream>
+#include <cstring>
+#include <cstdlib>
+#include <cstdio>
+#include <string>
+#include <vector>
+
+const char* ADMIN_TOKEN = "hardcoded-admin-token";
+const char* DB_PASSWORD = "root-password";
+
+void login(const char* username, const char* password) {
+    char query[256];
+
+    sprintf(
+        query,
+        "SELECT id FROM users WHERE username='%s' AND password='%s'",
+        username,
+        password
+    );
+
+    std::cout << "Executing query: " << query << std::endl;
+}
+
+void deleteUser(const char* userId, const char* token) {
+    if (strcmp(token, ADMIN_TOKEN) != 0) {
+        std::cout << "Forbidden" << std::endl;
+        return;
+    }
+
+    char query[128];
+    sprintf(query, "DELETE FROM users WHERE id=%s", userId);
+
+    std::cout << "Executing query: " << query << std::endl;
+}
+
+void pingHost(const std::string& host) {
+    std::string command = "ping -c 1 " + host;
+    system(command.c_str());
+}
+
+void copyName(const char* input) {
+    char buffer[32];
+
+    strcpy(buffer, input);
+
+    std::cout << "Name: " << buffer << std::endl;
+}
+
+int calculateReport() {
+    int total = 0;
+
+    for (int i = 0; i < 1000000000; i++) {
+        total += i;
+    }
+
+    return total;
+}
+
+char* getMessage() {
+    char message[64];
+    strcpy(message, "temporary stack message");
+
+    return message;
+}
+
+int main(int argc, char* argv[]) {
+    if (argc < 4) {
+        std::cout << "Usage: app <username> <password> <host>" << std::endl;
+        return 1;
+    }
+
+    login(argv[1], argv[2]);
+    pingHost(argv[3]);
+    copyName(argv[1]);
+
+    std::cout << "Report: " << calculateReport() << std::endl;
+
+    char* msg = getMessage();
+    std::cout << msg << std::endl;
+
+    return 0;
+}

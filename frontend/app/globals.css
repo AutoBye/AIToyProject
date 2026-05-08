@@ -24,3 +24,16 @@ body {
 .dark body {
   color: #f4f7fb;
 }
+
+@keyframes indeterminate-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.indeterminate-progress {
+  animation: indeterminate-progress 1.2s ease-in-out infinite;
+}

@@ -41,3 +41,9 @@ class UploadResponse(BaseModel):
     kind: str
     size_bytes: int
     sha256: str
+
+
+class TextUploadRequest(BaseModel):
+    project_id: str
+    kind: str
+    content: str

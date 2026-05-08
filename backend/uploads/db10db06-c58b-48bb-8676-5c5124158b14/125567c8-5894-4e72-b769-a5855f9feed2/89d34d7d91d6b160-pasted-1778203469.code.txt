@@ -1,0 +1,19 @@
+public class CompileErrorExample {
+    public static void main(String[] args) {
+        int count = "10";
+
+        System.out.println("Count: " + count)
+
+        if (count > 5) {
+            System.out.println("large");
+        else {
+            System.out.println("small");
+        }
+
+        printMessage("hello", 123);
+    }
+
+    public static void printMessage(String message) {
+        System.out.println(message);
+    }
+}

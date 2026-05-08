@@ -1,10 +1,30 @@
 import hashlib
+import time
 from pathlib import Path
 from fastapi import HTTPException, UploadFile, status
 from app.core.config import settings
 
 
-CODE_EXTENSIONS = {".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".java", ".cs", ".php", ".rb", ".rs", ".sql"}
+CODE_EXTENSIONS = {
+    ".c",
+    ".cc",
+    ".cpp",
+    ".cs",
+    ".cxx",
+    ".go",
+    ".h",
+    ".hpp",
+    ".java",
+    ".js",
+    ".jsx",
+    ".php",
+    ".py",
+    ".rb",
+    ".rs",
+    ".sql",
+    ".ts",
+    ".tsx",
+}
 LOG_EXTENSIONS = {".log", ".txt", ".out", ".err"}
 
 
@@ -37,3 +57,22 @@ async def save_upload(file: UploadFile, user_id: str, project_id: str) -> tuple[
 
 def read_text_file(path: str) -> str:
     return Path(path).read_text(encoding="utf-8", errors="replace")
+
+
+def save_text_upload(content: str, kind: str, user_id: str, project_id: str) -> tuple[str, int, str, str]:
+    if kind not in {"code", "log"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="지원하지 않는 붙여넣기 유형입니다.")
+    data = content.encode("utf-8")
+    max_bytes = settings.max_upload_mb * 1024 * 1024
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="붙여넣은 내용이 너무 큽니다.")
+    if not content.strip():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="붙여넣을 내용을 입력해야 합니다.")
+
+    digest = hashlib.sha256(data).hexdigest()
+    upload_root = Path(settings.upload_dir) / user_id / project_id
+    upload_root.mkdir(parents=True, exist_ok=True)
+    extension = "txt" if kind == "log" else "code.txt"
+    path = upload_root / f"{digest[:16]}-pasted-{int(time.time())}.{extension}"
+    path.write_bytes(data)
+    return str(path), len(data), digest, kind
