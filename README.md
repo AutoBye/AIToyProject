@@ -1,13 +1,8 @@
 # AI Code & Server Log Analysis Platform
 
-AI 기반 코드 및 서버 로그 분석 플랫폼입니다.  
-사용자가 업로드한 소스 코드와 서버 로그를 AI가 분석하여 문제 원인, 성능 병목, 보안 취약점 및 개선 방안을 제공합니다.
+AI 기반 코드 및 서버 로그 분석 플랫폼입니다. 사용자가 업로드한 소스 코드와 서버 로그를 OpenAI API로 분석해 문제 원인, 보안 취약점, 성능 병목, 개선 방향을 제공합니다.
 
-이 프로젝트는 Next.js 15 프론트엔드와 Python FastAPI 백엔드를 분리한 구조로 설계되었으며, PostgreSQL, Redis, OpenAI API, Docker Compose를 기반으로 운영 환경까지 확장할 수 있는 프로덕션 지향 스타터입니다.
-
----
-
-# Preview
+Frontend는 Next.js, Backend는 FastAPI로 분리되어 있으며 PostgreSQL, Redis, Docker Compose를 기반으로 로컬 개발 환경과 배포 환경으로 확장할 수 있도록 구성했습니다.
 
 ## 주요 기능
 
@@ -15,22 +10,24 @@ AI 기반 코드 및 서버 로그 분석 플랫폼입니다.
 - 서버 로그 분석
 - AI 기반 코드 리뷰
 - 에러 원인 분석
-- 실시간 AI 응답 스트리밍
-- 프로젝트 대시보드
-- 프로젝트 히스토리 관리
+- 성능 병목 및 보안 취약점 탐지
+- 분석 결과 저장 및 히스토리 조회
+- 분석 결과 기반 AI 채팅
+- SSE 기반 실시간 스트리밍 응답
+- 프로젝트 단위 관리
 - JWT 인증
-- 파일 업로드 시스템
-- 분석 결과 저장
-- AI 채팅 기능
+- 파일 업로드
 - 토큰 사용량 추적
-- 다크 모드 지원
-- 구조화 로그 기반 에러 모니터링
 
----
+## 프로젝트 목표
 
-# Tech Stack
+대규모 코드와 로그를 사람이 직접 훑는 시간을 줄이고, 개발자가 더 빠르게 문제 원인을 파악할 수 있게 돕는 것이 목표입니다.
 
-## Frontend
+이 프로젝트는 단순한 챗봇이 아니라 코드/로그 업로드, 분석 요청, 결과 저장, 후속 질문, 토큰 사용량 관리까지 하나의 작업 흐름으로 묶은 분석 플랫폼을 지향합니다.
+
+## Tech Stack
+
+Frontend:
 
 - Next.js 15
 - React 19
@@ -38,11 +35,8 @@ AI 기반 코드 및 서버 로그 분석 플랫폼입니다.
 - TailwindCSS
 - Zustand
 - Monaco Editor
-- Server-Sent Events Client
 
----
-
-## Backend
+Backend:
 
 - Python FastAPI
 - Async SQLAlchemy
@@ -51,253 +45,97 @@ AI 기반 코드 및 서버 로그 분석 플랫폼입니다.
 - Redis
 - Structured Logging
 
-> Celery 기반 백그라운드 워커는 대용량 분석 작업 확장 포인트로 설계되어 있으며, 현재 구현은 FastAPI 비동기 API 중심입니다.
-
----
-
-## Database
+Database:
 
 - PostgreSQL
 - UUID Primary Key
 - JSONB 분석 결과 저장
 - Token Usage Tracking
 
----
-
-## AI
+AI:
 
 - OpenAI API
 - Prompt Template Architecture
-- Claude API Optional Extension
+- SSE Streaming Response
 
----
-
-## Infrastructure
+Infrastructure:
 
 - Docker
 - Docker Compose
 - PostgreSQL Container
 - Redis Container
-- Nginx Optional Extension
 
----
-
-# System Architecture
+## System Architecture
 
 ```text
-Client
-  ↓
-Next.js Frontend
-  ↓
-API Abstraction Layer
-  ↓
-FastAPI AI Server
-  ↓
-PostgreSQL / Redis / OpenAI API
+Client Browser
+  -> Next.js Frontend
+  -> API Abstraction Layer
+  -> FastAPI Backend
+  -> PostgreSQL / Redis / OpenAI API
 ```
 
-현재 프론트엔드는 `frontend/lib/api.ts`의 API 추상화 계층을 통해 FastAPI 서버와 통신합니다.  
-AI 채팅은 SSE(Server-Sent Events)를 사용하여 토큰 단위 응답을 실시간으로 렌더링합니다.
+Frontend는 사용자 인터페이스, 인증 상태, 업로드 화면, 분석 결과 뷰어, AI 채팅 UI를 담당합니다.
 
----
+Backend는 인증, 파일 처리, 분석 요청, OpenAI API 호출, SSE 스트리밍, 데이터 저장을 담당합니다.
 
-# Main Features
+## 분석 흐름
 
-# 1. Source Code Analysis
+1. 사용자가 회원가입 또는 로그인을 합니다.
+2. 프로젝트를 생성합니다.
+3. 소스 코드 또는 서버 로그 파일을 업로드합니다.
+4. Backend가 파일 크기, 확장자, 소유권을 검증합니다.
+5. 사용자가 코드 분석 또는 로그 분석을 실행합니다.
+6. Backend가 분석 프롬프트를 구성하고 OpenAI API를 호출합니다.
+7. 분석 결과를 PostgreSQL `analyses.result` JSONB 컬럼에 저장합니다.
+8. 사용자는 저장된 분석 결과를 보고, AI 채팅으로 후속 질문을 할 수 있습니다.
 
-업로드한 소스 코드를 분석하여:
+## 주요 분석 항목
+
+Code Analysis:
 
 - 코드 스멜 탐지
 - 중복 로직 탐지
 - 복잡도 분석
-- 성능 문제 탐지
-- 보안 취약점 탐지
-- 리팩토링 제안
+- 보안 취약점 분석
+- 성능 개선 제안
+- 리팩터링 방향 제안
 - 개선 코드 예시 생성
 
-을 수행합니다.
-
-분석 결과는 PostgreSQL의 `analyses.result` JSONB 컬럼에 저장되며, 프론트엔드의 Monaco Editor 기반 뷰어에서 확인할 수 있습니다.
-
----
-
-# 2. Server Log Analysis
-
-서버 로그를 AI가 분석하여:
+Log Analysis:
 
 - 장애 원인 분석
-- 에러 패턴 탐지
+- 반복 에러 패턴 탐지
 - 비정상 요청 탐지
-- 보안 의심 패턴 탐지
+- 보안 위협 가능성 탐지
 - 성능 병목 분석
-- 크래시 원인 추론
+- 트래픽 패턴 분석
 - 심각도 분류
 
-를 제공합니다.
+AI Chat:
 
----
+- 분석 결과 기반 후속 질문
+- 특정 문제 원인 추가 설명
+- 개선 코드 예시 요청
+- 로그에서 가장 치명적인 문제 확인
+- 리팩터링 방향 상담
 
-# 3. AI Chat Assistant
+## Database Schema
 
-분석 결과 기반 질의응답 기능입니다.  
-특정 분석 결과를 컨텍스트로 포함하여 후속 질문에 답변할 수 있습니다.
+주요 테이블:
 
-예시:
+- `users`: 사용자 계정
+- `projects`: 프로젝트
+- `uploads`: 업로드 파일 메타데이터
+- `analyses`: 분석 결과
+- `ai_messages`: AI 채팅 메시지
+- `token_usage`: 모델별 토큰 사용량
 
-```text
-왜 이 코드가 성능이 낮은가요?
-```
+분석 결과는 유연한 확장을 위해 `analyses.result`에 JSONB 형태로 저장합니다.
 
-```text
-이 로그에서 가장 치명적인 문제는 무엇인가요?
-```
+## API Summary
 
-```text
-리팩토링 예시를 보여주세요.
-```
-
----
-
-# 4. Streaming AI Response
-
-SSE(Server-Sent Events) 기반 실시간 AI 응답 스트리밍을 지원합니다.
-
-프론트엔드:
-
-- `frontend/lib/api.ts`
-- `streamChat()`
-
-백엔드:
-
-- `POST /api/analysis/chat/stream`
-- `StreamingResponse`
-
----
-
-# Folder Structure
-
-```bash
-project-root/
-├── frontend/
-│   ├── app/
-│   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components/
-│   │   ├── ui/
-│   │   ├── AuthPanel.tsx
-│   │   ├── CodeEditor.tsx
-│   │   └── Shell.tsx
-│   ├── lib/
-│   │   └── api.ts
-│   ├── store/
-│   │   └── auth.ts
-│   ├── types/
-│   │   └── api.ts
-│   ├── Dockerfile
-│   └── package.json
-│
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── dependencies.py
-│   │   │   ├── router.py
-│   │   │   └── routes/
-│   │   ├── core/
-│   │   ├── services/
-│   │   ├── models/
-│   │   └── schemas/
-│   ├── Dockerfile
-│   └── requirements.txt
-│
-├── database/
-│   └── schema.sql
-├── docs/
-├── docker-compose.yml
-└── README.md
-```
-
----
-
-# Database Schema
-
-## Main Tables
-
-### users
-
-- id
-- email
-- password_hash
-- full_name
-- created_at
-
-### projects
-
-- id
-- user_id
-- name
-- description
-- created_at
-
-### uploads
-
-- id
-- project_id
-- user_id
-- file_name
-- content_type
-- kind
-- size_bytes
-- storage_path
-- sha256
-- created_at
-
-### analyses
-
-- id
-- project_id
-- upload_id
-- user_id
-- kind
-- status
-- severity
-- model
-- prompt_version
-- summary
-- result
-- error_message
-- created_at
-- completed_at
-
-### ai_messages
-
-- id
-- analysis_id
-- project_id
-- user_id
-- role
-- content
-- token_count
-- created_at
-
-### token_usage
-
-- id
-- user_id
-- project_id
-- analysis_id
-- model
-- prompt_tokens
-- completion_tokens
-- total_tokens
-- estimated_cost_usd
-- created_at
-
----
-
-# API Endpoints
-
-## Authentication
+Authentication:
 
 ```http
 POST /api/auth/register
@@ -305,9 +143,7 @@ POST /api/auth/login
 GET  /api/auth/me
 ```
 
----
-
-## Projects
+Projects:
 
 ```http
 POST /api/projects
@@ -315,22 +151,13 @@ GET  /api/projects
 GET  /api/projects/dashboard
 ```
 
----
-
-## Upload
+Uploads:
 
 ```http
 POST /api/uploads
 ```
 
-Multipart form data:
-
-- `project_id`
-- `file`
-
----
-
-## Analysis
+Analysis:
 
 ```http
 POST /api/analysis/code
@@ -338,148 +165,164 @@ POST /api/analysis/log
 GET  /api/analysis/history
 ```
 
----
-
-## Chat
+Chat:
 
 ```http
 POST /api/analysis/chat/stream
 ```
 
-SSE response:
+SSE response example:
 
 ```text
 data: {"delta":"partial response"}
 data: [DONE]
 ```
 
----
+## Project Structure
 
-# Environment Variables
-
-## Frontend (.env.local)
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+```text
+.
+|-- backend/
+|   |-- app/
+|   |   |-- api/
+|   |   |-- core/
+|   |   |-- models/
+|   |   |-- schemas/
+|   |   `-- services/
+|   |-- Dockerfile
+|   |-- requirements.txt
+|   `-- .env.example
+|-- database/
+|   `-- schema.sql
+|-- docs/
+|   |-- API.md
+|   |-- ARCHITECTURE.md
+|   |-- AUTH_FLOW.md
+|   |-- DEPLOYMENT.md
+|   |-- PRODUCTION.md
+|   `-- PROMPTS.md
+|-- frontend/
+|   |-- app/
+|   |-- components/
+|   |-- lib/
+|   |-- store/
+|   |-- types/
+|   |-- Dockerfile
+|   |-- package.json
+|   `-- package-lock.json
+|-- docker-compose.yml
+`-- README.md
 ```
 
----
+## Docker 기반 실행
 
-## Backend (.env)
+이 프로젝트는 Docker Compose 실행을 기본 개발 환경으로 둡니다. Docker를 사용하면 Node.js, Python, PostgreSQL, Redis를 각각 직접 설치하거나 실행하지 않아도 됩니다.
 
-```env
-APP_NAME=AI Code & Log Analyzer
-ENVIRONMENT=local
-OPENAI_API_KEY=your_api_key
-OPENAI_MODEL=gpt-4.1-mini
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/ailogcode
-REDIS_URL=redis://redis:6379/0
-JWT_SECRET=your_secret
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-UPLOAD_DIR=/app/uploads
-MAX_UPLOAD_MB=10
-CORS_ORIGINS=http://localhost:3000
+### Prerequisites
+
+- Docker Desktop
+- Git
+- OpenAI API key
+
+### Environment Setup
+
+프로젝트 루트에서 Backend 환경 파일을 만듭니다.
+
+```powershell
+Copy-Item backend\.env.example backend\.env
 ```
 
----
-
-# Installation
-
-# 1. Clone Repository
-
-```bash
-git clone https://github.com/your-repo/project.git
-cd project
-```
-
----
-
-# 2. Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-# 3. Backend Setup
-
-```bash
-cd backend
-
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# Linux / Mac
-source venv/bin/activate
-
-pip install -r requirements.txt
-
-uvicorn app.main:app --reload
-```
-
----
-
-# 4. Docker Run
+Linux/macOS 또는 Git Bash:
 
 ```bash
 cp backend/.env.example backend/.env
-docker compose up --build
 ```
 
-실제 AI 분석을 실행하려면 `backend/.env`에 `OPENAI_API_KEY`를 설정해야 합니다.
+그 다음 `backend/.env`에서 OpenAI API key를 설정합니다.
 
-Open:
+```env
+OPENAI_API_KEY=your-openai-api-key
+```
 
-- Frontend: `http://localhost:3000`
-- Backend API Docs: `http://localhost:8000/docs`
-- Health Check: `http://localhost:8000/health`
+Docker Compose 기준 기본값:
 
----
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/ailogcode
+REDIS_URL=redis://redis:6379/0
+UPLOAD_DIR=/app/uploads
+CORS_ORIGINS=http://localhost:3000
+```
 
-# AI Prompt Strategy
+### Run
 
-## Code Analysis Prompt
+처음 실행하거나 Dockerfile, dependency가 바뀐 경우:
 
-- 코드 스멜 탐지
-- 중복 로직 탐지
-- 복잡도 분석
-- 성능 개선 제안
-- 보안 취약점 분석
-- 리팩토링 추천
-- 개선 코드 예시 생성
+```powershell
+docker compose up --build -d
+```
 
----
+일반 실행:
 
-## Log Analysis Prompt
+```powershell
+docker compose up -d
+```
 
-- 장애 원인 분석
-- 치명적 에러 탐지
-- 의심스러운 요청 탐지
-- 보안 이슈 탐지
-- 성능 병목 분석
-- 크래시 패턴 분석
-- 심각도 분류
+서비스 확인:
 
----
+```powershell
+docker compose ps
+```
 
-# Authentication Flow
+종료:
 
-1. 사용자가 회원가입 또는 로그인을 요청합니다.
-2. 백엔드는 비밀번호를 bcrypt 해시로 저장하거나 검증합니다.
-3. 인증 성공 시 JWT access token을 발급합니다.
-4. 프론트엔드는 token을 저장하고 API 요청에 `Authorization: Bearer <token>` 헤더를 포함합니다.
-5. 백엔드는 토큰을 검증하고 현재 사용자를 로드합니다.
-6. 프로젝트, 업로드, 분석, 채팅 데이터는 모두 `user_id` 기준으로 접근을 제한합니다.
+```powershell
+docker compose down
+```
 
----
+PostgreSQL 데이터와 업로드 볼륨까지 초기화하려면:
 
-# Security
+```powershell
+docker compose down -v
+```
+
+주의: `-v`는 PostgreSQL 데이터 볼륨과 업로드 볼륨을 삭제합니다.
+
+## Local URLs
+
+- Frontend: http://localhost:3000
+- Backend API docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
+
+## Useful Commands
+
+Backend 로그:
+
+```powershell
+docker compose logs -f backend
+```
+
+Frontend 로그:
+
+```powershell
+docker compose logs -f frontend
+```
+
+전체 재빌드:
+
+```powershell
+docker compose build --no-cache
+docker compose up -d
+```
+
+## Runtime Data
+
+업로드 파일은 애플리케이션 실행 중 생성되는 데이터입니다. Docker Compose에서는 `uploads` 볼륨에 저장하며 Git에는 포함하지 않습니다.
+
+데이터베이스 데이터는 `postgres-data` 볼륨에 저장됩니다.
+
+## Security
 
 - JWT Authentication
 - Password Hashing
@@ -487,56 +330,20 @@ Open:
 - Upload Size Limit
 - User Ownership Check
 - Rate Limiting
-- Input Sanitization
-- XSS Prevention
-- SQL Injection Prevention
 - Environment Variable Based Secret Management
 
----
+운영 환경에서는 다음 값을 반드시 교체해야 합니다.
 
-# Performance Optimization
+- `JWT_SECRET`
+- `OPENAI_API_KEY`
+- `CORS_ORIGINS`
+- Database password
 
-- Redis Caching 확장 가능 구조
-- Streaming Response
-- Async FastAPI
-- Async SQLAlchemy
-- Background Workers 확장 가능 구조
-- Lazy Loading 가능 프론트엔드 구조
-- API Abstraction Layer
-- Token Usage Tracking
-- Upload Hash 기반 중복 분석 캐싱 확장 가능
-
----
-
-# Error Monitoring
-
-백엔드는 `structlog` 기반 구조화 로그를 출력합니다.  
-운영 환경에서는 다음 도구와 연동할 수 있습니다.
-
-- Sentry
-- OpenTelemetry Collector
-- Grafana Loki
-- Datadog
-- CloudWatch
-
----
-
-# Documentation
-
-- [API Documentation](docs/API.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Prompt Architecture](docs/PROMPTS.md)
-- [Authentication Flow](docs/AUTH_FLOW.md)
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [Production Optimization](docs/PRODUCTION.md)
-
----
-
-# Future Improvements
+## Future Improvements
 
 - GitHub Repository Import
 - Multi-LLM Support
-- Claude API Integration
+- Claude/Gemini API Integration
 - RAG Architecture
 - Vector Database
 - Team Collaboration
@@ -544,39 +351,13 @@ Open:
 - AI Severity Scoring
 - AI Cost Dashboard
 - Redis Queue Worker
-- Celery Worker
 - Nginx Reverse Proxy
 - Object Storage Upload
 
----
+## Notes
 
-# Why This Project
-
-대규모 코드와 로그를 빠르게 분석하는 것은 개발 생산성과 장애 대응 속도에 매우 중요합니다.
-
-이 프로젝트는 AI를 활용하여 개발자의 분석 시간을 줄이고 더 빠른 문제 해결을 지원하는 것을 목표로 합니다.
-
-코드 리뷰, 장애 대응, 보안 점검, 성능 개선을 하나의 워크스페이스에서 처리할 수 있도록 설계했습니다.
-
----
-
-# Lessons Learned
-
-- Next.js 기반 Fullstack Architecture
-- FastAPI 비동기 서버 설계
-- Clean Architecture 기반 모듈 분리
-- LLM Prompt Engineering
-- Streaming Response 처리
-- Docker 기반 개발 환경 구축
-- PostgreSQL JSONB 활용
-- Redis Queue 확장 전략
-- AI 비용 최적화 전략
-- JWT 인증 흐름 설계
-
----
-
-# Author
-
-김형섭
-
-Backend / AI / Fullstack Developer
+- `backend/.env`는 Git에 올리지 않습니다.
+- `backend/uploads/`는 Git에 올리지 않습니다.
+- Docker 내부에서 Backend가 PostgreSQL에 접속할 때는 `localhost`가 아니라 Compose 서비스명인 `postgres`를 사용합니다.
+- Docker 내부에서 Backend가 Redis에 접속할 때는 Compose 서비스명인 `redis`를 사용합니다.
+- Frontend 브라우저 요청은 사용자의 브라우저에서 Backend로 가기 때문에 `NEXT_PUBLIC_API_URL=http://localhost:8000`을 사용합니다.
