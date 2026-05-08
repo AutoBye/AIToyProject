@@ -29,6 +29,16 @@ export type Analysis = {
   severity?: string | null;
   summary?: string | null;
   result: { markdown?: string; [key: string]: unknown };
+  error_message?: string | null;
+  created_at: string;
+};
+
+export type ChatMessage = {
+  id: string;
+  analysis_id?: string | null;
+  project_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
   created_at: string;
 };
 

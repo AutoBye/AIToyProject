@@ -1,19 +1,28 @@
 import json
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from openai import RateLimitError
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import current_user
 from app.core.config import settings
 from app.core.database import get_session
 from app.models.entities import AiMessage, Analysis, AnalysisKind, AnalysisStatus, ChatRole, TokenUsage, Upload, User
-from app.schemas.analysis import AnalysisCreate, AnalysisResponse, ChatRequest
+from app.schemas.analysis import AnalysisCreate, AnalysisResponse, ChatMessageResponse, ChatRequest
 from app.services.files import read_text_file
 from app.services.openai_client import ai_client
 from app.services.prompts import CHAT_PROMPT, build_analysis_prompt
 
 router = APIRouter()
+
+KIND_LABELS = {"code": "코드", "log": "로그"}
+
+
+def analysis_failure_message(exc: Exception) -> str:
+    if isinstance(exc, RateLimitError) or getattr(exc, "status_code", None) == 429:
+        return "OpenAI API 요청 한도를 초과했습니다. 잠시 후 다시 시도하거나 결제/사용량 한도를 확인하세요."
+    return "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도하세요."
 
 
 # ORM 엔티티를 API 응답 스키마로 변환해 라우트마다 반복되는 직렬화 코드를 줄입니다.
@@ -27,6 +36,7 @@ def to_response(row: Analysis) -> AnalysisResponse:
         severity=row.severity,
         summary=row.summary,
         result=row.result,
+        error_message=row.error_message,
         created_at=row.created_at,
     )
 
@@ -45,9 +55,11 @@ async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSess
     # 업로드 소유권과 타입을 먼저 검증해 다른 사용자의 파일 접근과 잘못된 분석 실행을 막습니다.
     upload = await session.get(Upload, upload_id)
     if not upload or upload.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Upload not found")
+        raise HTTPException(status_code=404, detail="업로드 파일을 찾을 수 없습니다.")
     if upload.kind.value != kind:
-        raise HTTPException(status_code=400, detail=f"Upload is not a {kind} file")
+        expected = KIND_LABELS.get(kind, kind)
+        actual = KIND_LABELS.get(upload.kind.value, upload.kind.value)
+        raise HTTPException(status_code=400, detail=f"선택한 파일은 {expected} 파일이 아닙니다. 현재 파일 유형은 {actual}입니다.")
 
     # 실행 시작 시점에 분석 레코드를 먼저 저장해 실패하더라도 히스토리에서 추적할 수 있게 합니다.
     analysis = Analysis(project_id=upload.project_id, upload_id=upload.id, user_id=user.id, kind=AnalysisKind(kind), status=AnalysisStatus.running, model=settings.openai_model)
@@ -58,7 +70,10 @@ async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSess
     try:
         # 파일 내용을 프롬프트 템플릿에 주입하고 OpenAI 응답을 마크다운 리포트로 저장합니다.
         prompt = build_analysis_prompt(kind, read_text_file(upload.storage_path))
-        content, usage = await ai_client.complete("Return a concise but complete markdown report.", prompt)
+        content, usage = await ai_client.complete(
+            "한국어로 간결하지만 완성도 있는 Markdown 분석 리포트를 작성하세요.",
+            prompt,
+        )
         analysis.status = AnalysisStatus.completed
         analysis.summary = content.splitlines()[0][:500] if content else None
         analysis.result = {"markdown": content}
@@ -66,8 +81,12 @@ async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSess
         # 모델 사용량은 비용 최적화와 사용자별 사용량 제한의 기준 데이터입니다.
         session.add(TokenUsage(user_id=user.id, project_id=upload.project_id, analysis_id=analysis.id, model=settings.openai_model, **usage))
     except Exception as exc:
+        message = analysis_failure_message(exc)
         analysis.status = AnalysisStatus.failed
-        analysis.error_message = str(exc)
+        analysis.summary = message
+        analysis.error_message = message
+        analysis.result = {"markdown": f"## 분석 실패\n\n{message}\n\n원인: {type(exc).__name__}"}
+        analysis.completed_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(analysis)
     return to_response(analysis)
@@ -77,6 +96,30 @@ async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSess
 async def history(user: User = Depends(current_user), session: AsyncSession = Depends(get_session)) -> list[AnalysisResponse]:
     rows = (await session.scalars(select(Analysis).where(Analysis.user_id == user.id).order_by(desc(Analysis.created_at)).limit(50))).all()
     return [to_response(row) for row in rows]
+
+
+@router.get("/chat/history", response_model=list[ChatMessageResponse])
+async def chat_history(
+    project_id: str = Query(...),
+    analysis_id: str | None = Query(default=None),
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[ChatMessageResponse]:
+    query = select(AiMessage).where(AiMessage.user_id == user.id, AiMessage.project_id == project_id)
+    if analysis_id:
+        query = query.where(AiMessage.analysis_id == analysis_id)
+    rows = (await session.scalars(query.order_by(AiMessage.created_at.asc()).limit(100))).all()
+    return [
+        ChatMessageResponse(
+            id=str(row.id),
+            analysis_id=str(row.analysis_id) if row.analysis_id else None,
+            project_id=str(row.project_id),
+            role=row.role.value,
+            content=row.content,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
 
 
 @router.post("/chat/stream")

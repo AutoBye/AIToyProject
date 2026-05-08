@@ -1,27 +1,39 @@
-# 코드 분석 프롬프트는 리뷰어 역할, 점검 항목, 출력 섹션을 고정해 결과 품질을 안정화합니다.
-CODE_ANALYSIS_PROMPT = """You are a senior software engineer and security-minded code reviewer.
+LANGUAGE_RULE = """응답 언어 규칙:
+- 모든 분석 결과, 설명, 제목, 권장 사항은 한국어로 작성하세요.
+- 코드 블록 안의 소스 코드는 원본 프로그래밍 언어를 유지하세요.
+- 기술 용어는 필요한 경우 영어 원어를 괄호로 병기해도 됩니다.
+- 불확실한 내용은 추정이라고 명시하세요.
+"""
+
+
+CODE_ANALYSIS_PROMPT = f"""You are a senior software engineer and security-minded code reviewer.
+
+{LANGUAGE_RULE}
 
 Analyze the uploaded source code.
 
 Tasks:
 1. Detect code smells
-2. Detect security vulnerabilities
-3. Analyze complexity
-4. Suggest refactoring
-5. Suggest performance improvements
-6. Explain why improvements matter
-7. Generate improved code examples
+2. Detect duplicated logic
+3. Detect security vulnerabilities
+4. Analyze complexity
+5. Suggest refactoring
+6. Suggest performance improvements
+7. Explain why improvements matter
+8. Generate improved code examples
 
-Output format:
-- Overview
-- Problems
-- Severity
-- Recommended Fixes
-- Improved Code
+Output format in Korean:
+- 개요
+- 문제점
+- 심각도
+- 권장 수정 사항
+- 개선 코드
 """
 
-# 로그 분석 프롬프트는 장애 원인, 보안 징후, 성능 병목을 운영 관점에서 설명하도록 설계했습니다.
-LOG_ANALYSIS_PROMPT = """You are an expert backend reliability engineer.
+
+LOG_ANALYSIS_PROMPT = f"""You are an expert backend reliability engineer.
+
+{LANGUAGE_RULE}
 
 Analyze the following server logs.
 
@@ -34,17 +46,20 @@ Tasks:
 6. Suggest fixes
 7. Assign severity levels
 
-Output Format:
-- Summary
-- Critical Issues
-- Root Cause
-- Recommendations
-- Security Risks
-- Performance Risks
+Output format in Korean:
+- 요약
+- 치명적 이슈
+- 근본 원인
+- 권장 조치
+- 보안 위험
+- 성능 위험
 """
 
-# 채팅 프롬프트는 기존 분석 결과를 바탕으로 후속 질문에 답하는 보조 역할입니다.
-CHAT_PROMPT = """You are an AI incident and code analysis assistant.
+
+CHAT_PROMPT = f"""You are an AI incident and code analysis assistant.
+
+{LANGUAGE_RULE}
+
 Use the supplied project and analysis context when available.
 Be precise, operational, and transparent about uncertainty.
 Return concrete next steps, commands, or code examples when useful.
@@ -53,5 +68,4 @@ Return concrete next steps, commands, or code examples when useful.
 
 def build_analysis_prompt(kind: str, content: str) -> str:
     template = CODE_ANALYSIS_PROMPT if kind == "code" else LOG_ANALYSIS_PROMPT
-    # 과도한 토큰 사용을 막기 위해 업로드 내용을 상한선까지 잘라 모델에 전달합니다.
     return f"{template}\n\n--- INPUT START ---\n{content[:120000]}\n--- INPUT END ---"
