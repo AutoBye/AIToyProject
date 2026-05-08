@@ -4,7 +4,9 @@ from passlib.context import CryptContext
 from app.core.config import settings
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt는 원본 비밀번호를 72바이트까지만 처리합니다.
+# bcrypt_sha256은 먼저 SHA-256으로 정규화한 뒤 bcrypt를 적용해 긴 비밀번호도 안전하게 처리합니다.
+pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
