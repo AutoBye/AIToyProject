@@ -6,6 +6,20 @@ export class ApiError extends Error {
   }
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  "Invalid credentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
+  "Email already registered": "이미 가입된 이메일입니다.",
+  "Invalid token": "로그인이 만료되었거나 유효하지 않습니다.",
+  "User not found": "사용자 정보를 찾을 수 없습니다.",
+  "Request failed": "요청 처리에 실패했습니다.",
+  "Streaming is unavailable": "AI 응답 스트리밍을 사용할 수 없습니다."
+};
+
+function localizeErrorMessage(message: unknown): string {
+  if (typeof message !== "string" || !message.trim()) return ERROR_MESSAGES["Request failed"];
+  return ERROR_MESSAGES[message] ?? message;
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   const headers = new Headers(options.headers);
@@ -15,7 +29,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new ApiError(response.status, error.detail ?? "Request failed");
+    throw new ApiError(response.status, localizeErrorMessage(error.detail ?? "Request failed"));
   }
   return response.json() as Promise<T>;
 }
@@ -33,7 +47,7 @@ export async function streamChat(
     },
     body: JSON.stringify(payload)
   });
-  if (!response.body) throw new ApiError(response.status, "Streaming is unavailable");
+  if (!response.body) throw new ApiError(response.status, ERROR_MESSAGES["Streaming is unavailable"]);
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";

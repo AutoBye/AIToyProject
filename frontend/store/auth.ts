@@ -9,7 +9,7 @@ type AuthState = {
   loading: boolean;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, fullName?: string) => Promise<void>;
   loadUser: () => Promise<void>;
   logout: () => void;
 };
@@ -32,12 +32,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ loading: false });
     }
   },
-  async register(email, password) {
+  async register(email, password, fullName) {
     set({ loading: true });
     try {
       const data = await apiFetch<{ access_token: string }>("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, full_name: fullName || undefined })
       });
       localStorage.setItem("access_token", data.access_token);
       set({ token: data.access_token });
