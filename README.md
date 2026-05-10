@@ -251,6 +251,12 @@ Backend syntax check:
 python -m py_compile backend\app\api\routes\analysis.py backend\app\schemas\analysis.py backend\app\services\prompts.py
 ```
 
+Backend tests:
+
+```powershell
+docker compose run --rm backend sh -c "pip install -q -r requirements-dev.txt && pytest -q"
+```
+
 Docker rebuild:
 
 ```powershell
@@ -265,6 +271,7 @@ docker compose up --build -d
 - 채팅은 SSE 스트리밍으로 처리해 긴 AI 답변도 즉시 표시됩니다.
 - 모든 프로젝트, 업로드, 분석 조회는 현재 사용자 소유권을 검증합니다.
 - Docker Compose로 프론트엔드, 백엔드, PostgreSQL, Redis를 한 번에 실행할 수 있습니다.
+- 리포트 반영, 중복 반영 방지, 타 사용자 분석 차단을 pytest로 검증합니다.
 
 ## 프로젝트 구조
 
@@ -298,14 +305,6 @@ docker compose up --build -d
 |-- docker-compose.yml
 `-- README.md
 ```
-
-## 포트폴리오 설명 포인트
-
-- 왜 채팅 답변을 리포트에 자동 반영하지 않고 사용자가 선택하게 했는가
-- AI 분석 결과를 JSONB로 저장한 이유
-- SSE 스트리밍을 사용한 이유
-- 사용자별 소유권 검증이 필요한 이유
-- Docker Compose로 개발 환경을 재현 가능하게 만든 이유
 
 ## 향후 개선 계획
 
