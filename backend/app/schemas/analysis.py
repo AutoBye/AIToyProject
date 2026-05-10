@@ -6,6 +6,10 @@ class AnalysisCreate(BaseModel):
     upload_id: str
 
 
+class ReportAppendRequest(BaseModel):
+    content: str
+
+
 class AnalysisResponse(BaseModel):
     id: str
     project_id: str

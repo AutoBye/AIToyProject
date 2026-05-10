@@ -2,7 +2,7 @@
 
 import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Activity, Bot, FileUp, History, Loader2, Send, WalletCards, X, ArrowDownToLine } from "lucide-react";
+import { Activity, Bot, FilePlus2, FileUp, History, Loader2, Send, WalletCards, X, ArrowDownToLine } from "lucide-react";
 import { AuthPanel } from "@/components/AuthPanel";
 import { CodeEditor, MarkdownMessage } from "@/components/CodeEditor";
 import { Shell } from "@/components/Shell";
@@ -42,6 +42,11 @@ const text = {
   pastePlaceholder: "\ubd84\uc11d\ud560 \ucf54\ub4dc \ub610\ub294 \ub85c\uadf8\ub97c \uc5ec\uae30\uc5d0 \ubd99\uc5ec\ub123\uc73c\uc138\uc694.",
   pasteSubmit: "\ubd99\uc5ec\ub123\uace0 \uc790\ub3d9 \ubd84\uc11d",
   pasteRequired: "\ubd99\uc5ec\ub123\uc740 \ub0b4\uc6a9\uc744 \uc785\ub825\ud574\uc57c \ud569\ub2c8\ub2e4.",
+  applyToReport: "\ub9ac\ud3ec\ud2b8\uc5d0 \ubc18\uc601",
+  applyingToReport: "\ubc18\uc601 \uc911",
+  alreadyAppliedToReport: "\uc774\ubbf8 \ubc18\uc601\ub428",
+  reportApplied: "\ub9ac\ud3ec\ud2b8\uc5d0 \ubc18\uc601\ud588\uc2b5\ub2c8\ub2e4.",
+  reportApplyFailed: "\ub9ac\ud3ec\ud2b8 \ubc18\uc601\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.",
   cancelUpload: "\uc5c5\ub85c\ub4dc/\ubd84\uc11d \ucde8\uc18c",
   cancelComplete: "\uc5c5\ub85c\ub4dc\uc640 \ubd84\uc11d\uc744 \ucde8\uc18c\ud588\uc2b5\ub2c8\ub2e4.",
   cancelFailed: "\ucde8\uc18c \uc694\uccad \ucc98\ub9ac \uc911 \uc77c\ubd80 \uc815\ub9ac\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.",
@@ -165,6 +170,7 @@ export default function Home() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [pasteKind, setPasteKind] = useState<"code" | "log">("code");
   const [pasteContent, setPasteContent] = useState("");
+  const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
 
   const canUpload = Boolean(projectId) && !busy;
@@ -447,6 +453,33 @@ export default function Home() {
       }
     ]);
     await loadChatHistory(projectId, analysis.id);
+    setAnswer("");
+  }
+
+  async function applyAnswerToReport(messageId: string, content: string) {
+    if (!analysis?.id || !content.trim() || isAnswerAppliedToReport(content)) return;
+    setApplyingMessageId(messageId);
+    setError("");
+    try {
+      const updated = await apiFetch<Analysis>(`/api/analysis/${analysis.id}/report/append`, {
+        method: "POST",
+        body: JSON.stringify({ content })
+      });
+      setAnalysis(updated);
+      setHistory((items) => [updated, ...items.filter((item) => item.id !== updated.id)]);
+      setToast(text.reportApplied);
+      window.setTimeout(() => setToast(""), 2500);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : text.reportApplyFailed);
+    } finally {
+      setApplyingMessageId(null);
+    }
+  }
+
+  function isAnswerAppliedToReport(content: string): boolean {
+    const markdown = typeof analysis?.result.markdown === "string" ? analysis.result.markdown : "";
+    const answer = content.trim();
+    return Boolean(answer && markdown.includes(answer));
   }
 
   if (!mounted) return <main className="min-h-screen bg-surface" />;
@@ -615,14 +648,30 @@ export default function Home() {
             <div ref={chatHistoryRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
               {!analysis?.id && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.noAnalysisChatHint}</p>}
               {analysis?.id && chatMessages.length === 0 && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.chatHistoryEmpty}</p>}
-              {chatMessages.map((message) => (
-                <div key={message.id} className="rounded-md border border-border bg-surface p-3 text-sm">
-                  <div className="mb-1 text-xs font-semibold text-slate-500">
-                    {message.role === "user" ? text.senderUser : text.senderAssistant}
+              {chatMessages.map((message) => {
+                const isApplied = message.role === "assistant" && isAnswerAppliedToReport(message.content);
+                const isApplying = applyingMessageId === message.id;
+                return (
+                  <div key={message.id} className="rounded-md border border-border bg-surface p-3 text-sm">
+                    <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold text-slate-500">
+                      <span>{message.role === "user" ? text.senderUser : text.senderAssistant}</span>
+                      {message.role === "assistant" && (
+                        <Button
+                          className="h-7 shrink-0 gap-1 bg-slate-700 px-2 text-xs disabled:bg-slate-600"
+                          disabled={isApplying || isApplied}
+                          onClick={() => applyAnswerToReport(message.id, message.content)}
+                          title={isApplied ? text.alreadyAppliedToReport : text.applyToReport}
+                          type="button"
+                        >
+                          {isApplying ? <Loader2 className="animate-spin" size={13} /> : <FilePlus2 size={13} />}
+                          <span>{isApplying ? text.applyingToReport : isApplied ? text.alreadyAppliedToReport : text.applyToReport}</span>
+                        </Button>
+                      )}
+                    </div>
+                    <MarkdownMessage value={message.content} />
                   </div>
-                  <MarkdownMessage value={message.content} />
-                </div>
-              ))}
+                );
+              })}
               {answer && (
                 <div className="rounded-md border border-border bg-surface p-3 text-sm">
                   <div className="mb-1 text-xs font-semibold text-slate-500">{text.senderAssistant}</div>

@@ -9,7 +9,7 @@ from app.api.dependencies import current_user
 from app.core.config import settings
 from app.core.database import get_session
 from app.models.entities import AiMessage, Analysis, AnalysisKind, AnalysisStatus, ChatRole, TokenUsage, Upload, User
-from app.schemas.analysis import AnalysisCreate, AnalysisResponse, ChatMessageResponse, ChatRequest
+from app.schemas.analysis import AnalysisCreate, AnalysisResponse, ChatMessageResponse, ChatRequest, ReportAppendRequest
 from app.services.files import read_text_file
 from app.services.openai_client import ai_client
 from app.services.prompts import CHAT_PROMPT, build_analysis_prompt
@@ -57,6 +57,16 @@ def summary_from_markdown(content: str) -> str | None:
 
 
 # ORM 엔티티를 API 응답 스키마로 변환해 라우트마다 반복되는 직렬화 코드를 줄입니다.
+def append_to_report(markdown: str, content: str) -> str:
+    existing = markdown.strip()
+    addition = content.strip()
+    if not existing:
+        return f"## AI Assistant Applied Notes\n\n{addition}"
+    if addition in existing:
+        return existing
+    return f"{existing}\n\n---\n\n## AI Assistant Applied Notes\n\n{addition}"
+
+
 def to_response(row: Analysis, upload_file_name: str | None = None) -> AnalysisResponse:
     return AnalysisResponse(
         id=str(row.id),
@@ -81,6 +91,34 @@ async def analyze_code(payload: AnalysisCreate, user: User = Depends(current_use
 @router.post("/log", response_model=AnalysisResponse)
 async def analyze_log(payload: AnalysisCreate, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)) -> AnalysisResponse:
     return await run_analysis(payload.upload_id, "log", user, session)
+
+
+@router.post("/{analysis_id}/report/append", response_model=AnalysisResponse)
+async def append_chat_answer_to_report(
+    analysis_id: str,
+    payload: ReportAppendRequest,
+    user: User = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+) -> AnalysisResponse:
+    content = payload.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Content is required")
+
+    analysis = await session.get(Analysis, analysis_id)
+    if not analysis or analysis.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    result = dict(analysis.result or {})
+    current_markdown = result.get("markdown") if isinstance(result.get("markdown"), str) else ""
+    next_markdown = append_to_report(current_markdown, content)
+    result["markdown"] = next_markdown
+    analysis.result = result
+    analysis.summary = summary_from_markdown(next_markdown)
+
+    upload = await session.get(Upload, analysis.upload_id)
+    await session.commit()
+    await session.refresh(analysis)
+    return to_response(analysis, upload.file_name if upload else None)
 
 
 async def run_analysis(upload_id: str, kind: str, user: User, session: AsyncSession) -> AnalysisResponse:
