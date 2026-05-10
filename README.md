@@ -1,139 +1,93 @@
-# AI Code & Server Log Analysis Platform
+# AI Code & Log Analyzer
 
-AI 기반 코드 및 서버 로그 분석 플랫폼입니다. 사용자가 업로드한 소스 코드와 서버 로그를 OpenAI API로 분석해 문제 원인, 보안 취약점, 성능 병목, 개선 방향을 제공합니다.
+AI 기반 코드 및 서버 로그 분석 워크스페이스입니다. 사용자가 코드나 로그를 업로드하면 OpenAI API로 문제 원인, 보안 취약점, 성능 위험, 개선 방향을 분석하고, 후속 질문과 리포트 반영까지 하나의 흐름으로 처리합니다.
 
-Frontend는 Next.js, Backend는 FastAPI로 분리되어 있으며 PostgreSQL, Redis, Docker Compose를 기반으로 로컬 개발 환경과 배포 환경으로 확장할 수 있도록 구성했습니다.
+이 프로젝트는 단순한 챗봇이 아니라 `업로드 -> 분석 -> 리포트 저장 -> AI 후속 질문 -> 리포트 보강 -> Markdown 다운로드`까지 이어지는 분석 제품을 목표로 만들었습니다.
 
 ## 주요 기능
 
-- 소스 코드 분석
-- 서버 로그 분석
-- AI 기반 코드 리뷰
-- 에러 원인 분석
-- 성능 병목 및 보안 취약점 탐지
-- 분석 결과 저장 및 히스토리 조회
-- 분석 결과 기반 AI 채팅
-- SSE 기반 실시간 스트리밍 응답
-- 프로젝트 단위 관리
-- JWT 인증
-- 파일 업로드
-- 토큰 사용량 추적
+- 코드/로그 파일 업로드 및 텍스트 붙여넣기 분석
+- 샘플 코드 불러오기 기반 빠른 데모
+- OpenAI 기반 Markdown 분석 리포트 생성
+- 분석 히스토리 저장 및 프로젝트별 조회
+- 분석 결과를 컨텍스트로 사용하는 AI 후속 질문
+- SSE(Server-Sent Events) 기반 실시간 AI 답변 스트리밍
+- AI 답변을 사용자가 선택해 리포트에 반영
+- 이미 반영한 AI 답변 중복 반영 방지
+- Markdown 리포트 다운로드
+- JWT 인증, 사용자별 프로젝트/업로드/분석 소유권 검증
+- Docker Compose 기반 로컬 실행 환경
 
-## 프로젝트 목표
+## 데모 시나리오
 
-대규모 코드와 로그를 사람이 직접 훑는 시간을 줄이고, 개발자가 더 빠르게 문제 원인을 파악할 수 있게 돕는 것이 목표입니다.
+1. 회원가입 또는 로그인
+2. 프로젝트 생성 또는 선택
+3. `샘플 불러오기` 또는 코드/로그 업로드
+4. 자동 분석 실행
+5. 중앙 리포트 뷰어에서 분석 결과 확인
+6. 우측 AI 어시스턴트에 후속 질문 입력
+7. 유용한 답변을 `리포트에 반영`
+8. 완성된 리포트를 Markdown으로 다운로드
 
-이 프로젝트는 단순한 챗봇이 아니라 코드/로그 업로드, 분석 요청, 결과 저장, 후속 질문, 토큰 사용량 관리까지 하나의 작업 흐름으로 묶은 분석 플랫폼을 지향합니다.
-
-## Tech Stack
+## 기술 스택
 
 Frontend:
 
 - Next.js 15
 - React 19
 - TypeScript
-- TailwindCSS
+- Tailwind CSS
 - Zustand
-- Monaco Editor
+- lucide-react
 
 Backend:
 
-- Python FastAPI
+- FastAPI
 - Async SQLAlchemy
 - Pydantic Settings
 - JWT Authentication
-- Redis
-- Structured Logging
+- OpenAI API
+- SSE Streaming
 
-Database:
+Database / Infra:
 
 - PostgreSQL
-- UUID Primary Key
-- JSONB 분석 결과 저장
-- Token Usage Tracking
-
-AI:
-
-- OpenAI API
-- Prompt Template Architecture
-- SSE Streaming Response
-
-Infrastructure:
-
+- Redis
 - Docker
 - Docker Compose
-- PostgreSQL Container
-- Redis Container
 
-## System Architecture
+## 아키텍처
 
 ```text
-Client Browser
+Browser
   -> Next.js Frontend
-  -> API Abstraction Layer
   -> FastAPI Backend
-  -> PostgreSQL / Redis / OpenAI API
+  -> PostgreSQL
+  -> Redis
+  -> OpenAI API
 ```
 
-Frontend는 사용자 인터페이스, 인증 상태, 업로드 화면, 분석 결과 뷰어, AI 채팅 UI를 담당합니다.
+Frontend는 인증 상태, 프로젝트 선택, 업로드, 분석 리포트 뷰어, AI 채팅 UI를 담당합니다.
 
-Backend는 인증, 파일 처리, 분석 요청, OpenAI API 호출, SSE 스트리밍, 데이터 저장을 담당합니다.
+Backend는 인증, 파일 저장, 분석 실행, OpenAI 호출, SSE 스트리밍, 데이터 저장, 소유권 검증을 담당합니다.
 
-## 분석 흐름
+## 데이터 흐름
 
-1. 사용자가 회원가입 또는 로그인을 합니다.
-2. 프로젝트를 생성합니다.
-3. 소스 코드 또는 서버 로그 파일을 업로드합니다.
-4. Backend가 파일 크기, 확장자, 소유권을 검증합니다.
-5. 사용자가 코드 분석 또는 로그 분석을 실행합니다.
-6. Backend가 분석 프롬프트를 구성하고 OpenAI API를 호출합니다.
-7. 분석 결과를 PostgreSQL `analyses.result` JSONB 컬럼에 저장합니다.
-8. 사용자는 저장된 분석 결과를 보고, AI 채팅으로 후속 질문을 할 수 있습니다.
+```text
+Upload/Text Input
+  -> uploads table
+  -> analysis API
+  -> OpenAI analysis prompt
+  -> analyses.result JSONB
+  -> report viewer
+  -> chat stream with analysis context
+  -> ai_messages table
+  -> optional report append
+```
 
-## 주요 분석 항목
+분석 리포트와 채팅 메시지는 분리해서 저장합니다. AI 답변은 자동으로 원본 리포트를 바꾸지 않고, 사용자가 명시적으로 `리포트에 반영`을 눌렀을 때만 `analyses.result.markdown`에 추가됩니다.
 
-Code Analysis:
-
-- 코드 스멜 탐지
-- 중복 로직 탐지
-- 복잡도 분석
-- 보안 취약점 분석
-- 성능 개선 제안
-- 리팩터링 방향 제안
-- 개선 코드 예시 생성
-
-Log Analysis:
-
-- 장애 원인 분석
-- 반복 에러 패턴 탐지
-- 비정상 요청 탐지
-- 보안 위협 가능성 탐지
-- 성능 병목 분석
-- 트래픽 패턴 분석
-- 심각도 분류
-
-AI Chat:
-
-- 분석 결과 기반 후속 질문
-- 특정 문제 원인 추가 설명
-- 개선 코드 예시 요청
-- 로그에서 가장 치명적인 문제 확인
-- 리팩터링 방향 상담
-
-## Database Schema
-
-주요 테이블:
-
-- `users`: 사용자 계정
-- `projects`: 프로젝트
-- `uploads`: 업로드 파일 메타데이터
-- `analyses`: 분석 결과
-- `ai_messages`: AI 채팅 메시지
-- `token_usage`: 모델별 토큰 사용량
-
-분석 결과는 유연한 확장을 위해 `analyses.result`에 JSONB 형태로 저장합니다.
-
-## API Summary
+## 주요 API
 
 Authentication:
 
@@ -154,7 +108,9 @@ GET  /api/projects/dashboard
 Uploads:
 
 ```http
-POST /api/uploads
+POST   /api/uploads
+POST   /api/uploads/text
+DELETE /api/uploads/{upload_id}
 ```
 
 Analysis:
@@ -163,22 +119,154 @@ Analysis:
 POST /api/analysis/code
 POST /api/analysis/log
 GET  /api/analysis/history
+POST /api/analysis/{analysis_id}/report/append
 ```
 
 Chat:
 
 ```http
+GET  /api/analysis/chat/history
 POST /api/analysis/chat/stream
 ```
 
-SSE response example:
+SSE response:
 
 ```text
 data: {"delta":"partial response"}
 data: [DONE]
 ```
 
-## Project Structure
+## 데이터베이스
+
+주요 테이블:
+
+- `users`: 사용자 계정
+- `projects`: 사용자별 작업 공간
+- `uploads`: 업로드 파일 메타데이터
+- `analyses`: 분석 결과와 Markdown 리포트
+- `ai_messages`: 분석 기반 AI 채팅 기록
+- `token_usage`: 모델 사용량 추적
+
+분석 결과는 확장성을 위해 `analyses.result`에 JSONB 형태로 저장합니다.
+
+## 실행 방법
+
+### 1. 환경 파일 준비
+
+프로젝트 루트에서 실행합니다.
+
+Windows PowerShell:
+
+```powershell
+Copy-Item backend\.env.example backend\.env
+```
+
+macOS/Linux 또는 Git Bash:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+`backend/.env`에 OpenAI API key를 설정합니다.
+
+```env
+OPENAI_API_KEY=your-openai-api-key
+JWT_SECRET=replace-with-secure-secret
+```
+
+### 2. Docker Compose 실행
+
+```powershell
+docker compose up --build -d
+```
+
+서비스 상태 확인:
+
+```powershell
+docker compose ps
+```
+
+로그 확인:
+
+```powershell
+docker compose logs -f backend
+docker compose logs -f frontend
+```
+
+종료:
+
+```powershell
+docker compose down
+```
+
+데이터까지 초기화:
+
+```powershell
+docker compose down -v
+```
+
+`-v` 옵션은 PostgreSQL 데이터와 업로드 볼륨을 삭제합니다.
+
+## 접속 주소
+
+- Frontend: http://localhost:3000
+- Backend Swagger: http://localhost:8000/docs
+- Health Check: http://localhost:8000/health
+- PostgreSQL: localhost:5432
+- Redis: localhost:6379
+
+## 로컬 개발 명령
+
+Frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+npm run typecheck
+```
+
+Backend:
+
+```powershell
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Backend를 로컬에서 직접 실행하려면 PostgreSQL과 Redis가 먼저 실행 중이어야 합니다.
+
+## 검증 명령
+
+Frontend type check:
+
+```powershell
+cd frontend
+npm.cmd run typecheck
+```
+
+Backend syntax check:
+
+```powershell
+python -m py_compile backend\app\api\routes\analysis.py backend\app\schemas\analysis.py backend\app\services\prompts.py
+```
+
+Docker rebuild:
+
+```powershell
+docker compose up --build -d
+```
+
+## 구현 포인트
+
+- 분석 리포트와 AI 채팅을 분리해 저장해 원본 분석 결과의 추적성을 유지했습니다.
+- 리포트 반영은 사용자 명시 액션으로만 수행해 AI 답변이 자동으로 결과를 덮어쓰지 않게 했습니다.
+- 이미 반영된 답변은 UI와 API 양쪽에서 중복 반영을 막습니다.
+- 채팅은 SSE 스트리밍으로 처리해 긴 AI 답변도 즉시 표시됩니다.
+- 모든 프로젝트, 업로드, 분석 조회는 현재 사용자 소유권을 검증합니다.
+- Docker Compose로 프론트엔드, 백엔드, PostgreSQL, Redis를 한 번에 실행할 수 있습니다.
+
+## 프로젝트 구조
 
 ```text
 .
@@ -190,17 +278,15 @@ data: [DONE]
 |   |   |-- schemas/
 |   |   `-- services/
 |   |-- Dockerfile
-|   |-- requirements.txt
-|   `-- .env.example
+|   `-- requirements.txt
 |-- database/
 |   `-- schema.sql
 |-- docs/
 |   |-- API.md
 |   |-- ARCHITECTURE.md
-|   |-- AUTH_FLOW.md
 |   |-- DEPLOYMENT.md
-|   |-- PRODUCTION.md
-|   `-- PROMPTS.md
+|   |-- PORTFOLIO_NOTES.md
+|   `-- PRODUCTION.md
 |-- frontend/
 |   |-- app/
 |   |-- components/
@@ -208,156 +294,32 @@ data: [DONE]
 |   |-- store/
 |   |-- types/
 |   |-- Dockerfile
-|   |-- package.json
-|   `-- package-lock.json
+|   `-- package.json
 |-- docker-compose.yml
 `-- README.md
 ```
 
-## Docker 기반 실행
+## 포트폴리오 설명 포인트
 
-이 프로젝트는 Docker Compose 실행을 기본 개발 환경으로 둡니다. Docker를 사용하면 Node.js, Python, PostgreSQL, Redis를 각각 직접 설치하거나 실행하지 않아도 됩니다.
+- 왜 채팅 답변을 리포트에 자동 반영하지 않고 사용자가 선택하게 했는가
+- AI 분석 결과를 JSONB로 저장한 이유
+- SSE 스트리밍을 사용한 이유
+- 사용자별 소유권 검증이 필요한 이유
+- Docker Compose로 개발 환경을 재현 가능하게 만든 이유
 
-### Prerequisites
+## 향후 개선 계획
 
-- Docker Desktop
-- Git
-- OpenAI API key
-
-### Environment Setup
-
-프로젝트 루트에서 Backend 환경 파일을 만듭니다.
-
-```powershell
-Copy-Item backend\.env.example backend\.env
-```
-
-Linux/macOS 또는 Git Bash:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-그 다음 `backend/.env`에서 OpenAI API key를 설정합니다.
-
-```env
-OPENAI_API_KEY=your-openai-api-key
-```
-
-Docker Compose 기준 기본값:
-
-```env
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/ailogcode
-REDIS_URL=redis://redis:6379/0
-UPLOAD_DIR=/app/uploads
-CORS_ORIGINS=http://localhost:3000
-```
-
-### Run
-
-처음 실행하거나 Dockerfile, dependency가 바뀐 경우:
-
-```powershell
-docker compose up --build -d
-```
-
-일반 실행:
-
-```powershell
-docker compose up -d
-```
-
-서비스 확인:
-
-```powershell
-docker compose ps
-```
-
-종료:
-
-```powershell
-docker compose down
-```
-
-PostgreSQL 데이터와 업로드 볼륨까지 초기화하려면:
-
-```powershell
-docker compose down -v
-```
-
-주의: `-v`는 PostgreSQL 데이터 볼륨과 업로드 볼륨을 삭제합니다.
-
-## Local URLs
-
-- Frontend: http://localhost:3000
-- Backend API docs: http://localhost:8000/docs
-- Health check: http://localhost:8000/health
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
-
-## Useful Commands
-
-Backend 로그:
-
-```powershell
-docker compose logs -f backend
-```
-
-Frontend 로그:
-
-```powershell
-docker compose logs -f frontend
-```
-
-전체 재빌드:
-
-```powershell
-docker compose build --no-cache
-docker compose up -d
-```
-
-## Runtime Data
-
-업로드 파일은 애플리케이션 실행 중 생성되는 데이터입니다. Docker Compose에서는 `uploads` 볼륨에 저장하며 Git에는 포함하지 않습니다.
-
-데이터베이스 데이터는 `postgres-data` 볼륨에 저장됩니다.
-
-## Security
-
-- JWT Authentication
-- Password Hashing
-- File Validation
-- Upload Size Limit
-- User Ownership Check
-- Rate Limiting
-- Environment Variable Based Secret Management
-
-운영 환경에서는 다음 값을 반드시 교체해야 합니다.
-
-- `JWT_SECRET`
-- `OPENAI_API_KEY`
-- `CORS_ORIGINS`
-- Database password
-
-## Future Improvements
-
+- 분석 API 테스트와 권한 검증 테스트 추가
+- 분석 작업을 Redis Queue 기반 비동기 작업으로 전환
+- 분석 결과를 Markdown뿐 아니라 구조화 JSON으로도 저장
+- Severity 자동 점수화 고도화
 - GitHub Repository Import
-- Multi-LLM Support
-- Claude/Gemini API Integration
-- RAG Architecture
-- Vector Database
-- Team Collaboration
-- CI/CD Integration
-- AI Severity Scoring
-- AI Cost Dashboard
-- Redis Queue Worker
-- Nginx Reverse Proxy
-- Object Storage Upload
+- 비용 대시보드 고도화
+- 운영 환경용 Nginx reverse proxy와 CI/CD 구성
 
-## Notes
+## 참고 문서
 
-- `backend/.env`는 Git에 올리지 않습니다.
-- `backend/uploads/`는 Git에 올리지 않습니다.
-- Docker 내부에서 Backend가 PostgreSQL에 접속할 때는 `localhost`가 아니라 Compose 서비스명인 `postgres`를 사용합니다.
-- Docker 내부에서 Backend가 Redis에 접속할 때는 Compose 서비스명인 `redis`를 사용합니다.
-- Frontend 브라우저 요청은 사용자의 브라우저에서 Backend로 가기 때문에 `NEXT_PUBLIC_API_URL=http://localhost:8000`을 사용합니다.
+- [Portfolio Notes](docs/PORTFOLIO_NOTES.md)
+- [API Docs](docs/API.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Deployment](docs/DEPLOYMENT.md)

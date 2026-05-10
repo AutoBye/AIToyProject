@@ -2,7 +2,7 @@
 
 import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Activity, Bot, FilePlus2, FileUp, History, Loader2, Send, WalletCards, X, ArrowDownToLine } from "lucide-react";
+import { Activity, Bot, CheckCircle2, FilePlus2, FileUp, History, Loader2, RotateCcw, Send, Sparkles, WalletCards, X, ArrowDownToLine } from "lucide-react";
 import { AuthPanel } from "@/components/AuthPanel";
 import { CodeEditor, MarkdownMessage } from "@/components/CodeEditor";
 import { Shell } from "@/components/Shell";
@@ -42,6 +42,8 @@ const text = {
   pastePlaceholder: "\ubd84\uc11d\ud560 \ucf54\ub4dc \ub610\ub294 \ub85c\uadf8\ub97c \uc5ec\uae30\uc5d0 \ubd99\uc5ec\ub123\uc73c\uc138\uc694.",
   pasteSubmit: "\ubd99\uc5ec\ub123\uace0 \uc790\ub3d9 \ubd84\uc11d",
   pasteRequired: "\ubd99\uc5ec\ub123\uc740 \ub0b4\uc6a9\uc744 \uc785\ub825\ud574\uc57c \ud569\ub2c8\ub2e4.",
+  sampleLoad: "\uc0d8\ud50c \ubd88\ub7ec\uc624\uae30",
+  retryAnalysis: "\uc7ac\ubd84\uc11d",
   applyToReport: "\ub9ac\ud3ec\ud2b8\uc5d0 \ubc18\uc601",
   applyingToReport: "\ubc18\uc601 \uc911",
   alreadyAppliedToReport: "\uc774\ubbf8 \ubc18\uc601\ub428",
@@ -71,6 +73,17 @@ const text = {
   uploadFailed: "\ud30c\uc77c \uc5c5\ub85c\ub4dc\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.",
   uploads: "\uc5c5\ub85c\ub4dc"
 };
+
+const SAMPLE_CODE = `const express = require("express");
+const app = express();
+
+app.get("/users", async (req, res) => {
+  const id = req.query.id;
+  const rows = await db.query("SELECT * FROM users WHERE id = " + id);
+  res.json(rows);
+});
+
+app.listen(3000);`;
 
 type CodeBlock = {
   language: string;
@@ -340,6 +353,12 @@ export default function Home() {
     }
   }
 
+  function loadSampleContent() {
+    setPasteKind("code");
+    setPasteContent(SAMPLE_CODE);
+    setError("");
+  }
+
   async function onUpload(event: ChangeEvent<HTMLInputElement>) {
     await uploadFile(event.target.files?.[0]);
   }
@@ -381,6 +400,21 @@ export default function Home() {
     } catch (exc) {
       if (exc instanceof DOMException && exc.name === "AbortError") return;
       setError(exc instanceof Error ? exc.message : text.analysisFailed);
+    }
+  }
+
+  async function retryCurrentAnalysis() {
+    if (!upload || busy) return;
+    const { operationId, controller } = beginUploadOperation();
+    activeUploadRef.current = upload;
+    setBusy(true);
+    setError("");
+    await executeAnalysis(upload, upload.kind, operationId, controller.signal);
+    if (isActiveOperation(operationId)) {
+      setBusy(false);
+      setActionStatus("idle");
+      abortControllerRef.current = null;
+      activeUploadRef.current = null;
     }
   }
 
@@ -487,7 +521,22 @@ export default function Home() {
 
   return (
     <Shell>
-      <div className="mx-auto grid max-w-[1600px] gap-6 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(720px,1fr)_300px]">
+      <div className="mb-5 rounded-lg border border-border bg-panel p-4 shadow-sm">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h1 className="flex items-center gap-2 text-lg font-bold"><Sparkles size={19} /> AI 코드/로그 분석 워크스페이스</h1>
+            <p className="mt-1 text-sm text-slate-500">업로드부터 분석, 후속 질문, 리포트 반영까지 한 흐름으로 검토합니다.</p>
+          </div>
+          <div className="grid gap-2 text-xs sm:grid-cols-4 xl:min-w-[620px]">
+            <StepPill active={Boolean(projectId)} done={Boolean(projectId)} label="프로젝트" />
+            <StepPill active={actionStatus === "uploading"} done={Boolean(upload)} label="입력" />
+            <StepPill active={actionStatus === "analyzing"} done={analysis?.status === "completed"} label="분석" />
+            <StepPill active={Boolean(analysis?.id)} done={chatMessages.some((message) => message.role === "assistant")} label="후속 질문" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto grid max-w-[1600px] gap-6 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(720px,1fr)_320px]">
         <aside className="space-y-4">
           <section className="rounded-lg border border-border bg-panel p-4">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Activity size={16} /> {text.dashboard}</h2>
@@ -580,15 +629,21 @@ export default function Home() {
             <div className="mt-4 rounded-md border border-border bg-surface p-3">
               <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-sm font-semibold">{text.pasteContent}</h3>
-                <select
-                  className="h-9 rounded-md border border-border bg-panel px-3 text-sm"
-                  disabled={!projectId || busy}
-                  value={pasteKind}
-                  onChange={(event) => setPasteKind(event.target.value as "code" | "log")}
-                >
-                  <option value="code">{text.code}</option>
-                  <option value="log">{text.log}</option>
-                </select>
+                <div className="flex gap-2">
+                  <Button className="h-9 gap-1 bg-slate-700 px-3 text-xs" disabled={busy} type="button" onClick={loadSampleContent}>
+                    <Sparkles size={14} />
+                    <span>{text.sampleLoad}</span>
+                  </Button>
+                  <select
+                    className="h-9 rounded-md border border-border bg-panel px-3 text-sm"
+                    disabled={!projectId || busy}
+                    value={pasteKind}
+                    onChange={(event) => setPasteKind(event.target.value as "code" | "log")}
+                  >
+                    <option value="code">{text.code}</option>
+                    <option value="log">{text.log}</option>
+                  </select>
+                </div>
               </div>
               <textarea
                 className="min-h-36 w-full resize-y rounded-md border border-border bg-panel p-3 text-sm outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
@@ -602,8 +657,12 @@ export default function Home() {
               </Button>
             </div>
             {upload && (
-              <div className="mt-3 rounded-md border border-border bg-surface p-3 text-sm">
+              <div className="mt-3 flex flex-col gap-3 rounded-md border border-border bg-surface p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-slate-500">{upload.file_name} / {kindLabel[upload.kind]} / {upload.size_bytes} bytes</p>
+                <Button className="h-8 gap-1 bg-slate-700 px-3 text-xs" disabled={busy} type="button" onClick={retryCurrentAnalysis}>
+                  <RotateCcw size={14} />
+                  <span>{text.retryAnalysis}</span>
+                </Button>
               </div>
             )}
             {busy && <p className="mt-3 flex items-center gap-2 text-sm"><Loader2 className="animate-spin" size={16} /> {text.processing}</p>}
@@ -696,6 +755,15 @@ function Metric({ label, value, icon }: { label: string; value: number; icon?: R
     <div className="rounded-md border border-border p-3">
       <div className="flex items-center gap-1 text-xs text-slate-500">{icon}{label}</div>
       <div className="mt-1 text-xl font-bold">{value}</div>
+    </div>
+  );
+}
+
+function StepPill({ label, active, done }: { label: string; active: boolean; done: boolean }) {
+  return (
+    <div className={`flex h-10 items-center gap-2 rounded-md border px-3 ${done ? "border-emerald-500/40 bg-emerald-500/10" : active ? "border-accent bg-accent/10" : "border-border bg-surface"}`}>
+      {done ? <CheckCircle2 size={15} className="text-emerald-500" /> : active ? <Loader2 size={15} className="animate-spin text-accent" /> : <span className="h-2 w-2 rounded-full bg-slate-400" />}
+      <span className="font-semibold">{label}</span>
     </div>
   );
 }

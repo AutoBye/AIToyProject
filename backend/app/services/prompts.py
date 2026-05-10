@@ -39,13 +39,13 @@ Tasks:
 
 Required Korean output format:
 # 개요
-- What this code is trying to do
-- The most important risk
-- The first fix the developer should make
+- 이 코드가 수행하려는 일
+- 가장 중요한 위험
+- 개발자가 가장 먼저 수정해야 할 부분
 
-# 문제점
+# 문제 목록
 For each issue, include:
-- 위치 or 근거
+- 위치 또는 근거
 - 문제 설명
 - 영향
 
@@ -79,9 +79,9 @@ Tasks:
 
 Required Korean output format:
 # 요약
-- What happened
-- Impact
-- Most likely root cause
+- 발생한 일
+- 영향 범위
+- 가장 가능성 높은 근본 원인
 
 # 치명적 이슈
 List concrete errors or incidents.
@@ -92,10 +92,10 @@ Explain the most likely cause with log evidence.
 # 권장 조치
 Give immediate and follow-up actions.
 
-# 보안 위험
+# 보안 위협
 Mention suspicious requests, abuse, or attack indicators.
 
-# 성능 위험
+# 성능 위협
 Mention slow requests, bottlenecks, timeouts, or capacity risks.
 """
 

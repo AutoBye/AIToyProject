@@ -22,7 +22,7 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-surface">
       <header className="sticky top-0 z-10 border-b border-border bg-panel/95 backdrop-blur">
-        <div className="mx-auto flex min-h-14 max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex min-h-14 max-w-[1600px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-bold tracking-wide">{appTitle}</div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -40,7 +40,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-7xl px-4 py-6">{children}</div>
+      <div className="mx-auto max-w-[1600px] px-4 py-6">{children}</div>
     </main>
   );
 }
