@@ -1,32 +1,55 @@
-# Portfolio Notes
+# 포트폴리오 설명 노트
 
-## Project Summary
+## 프로젝트 요약
 
-This project is an AI-assisted code and server log analysis workspace. It combines upload, analysis, report review, follow-up chat, and report refinement in one workflow.
+이 프로젝트는 AI를 활용한 코드 및 서버 로그 분석 워크스페이스입니다. 사용자는 코드나 로그를 업로드하고, AI 분석 리포트를 확인한 뒤, 후속 질문과 리포트 보강까지 하나의 흐름으로 처리할 수 있습니다.
 
-## What To Show In A Demo
+단순히 AI에게 질문하는 챗봇이 아니라, 실제 분석 업무 흐름에 가깝게 `입력 -> 분석 -> 저장 -> 후속 질문 -> 리포트 반영 -> 다운로드` 과정을 제품 형태로 구성한 것이 핵심입니다.
 
-1. Create or select a project.
-2. Load the sample code or upload a source/log file.
-3. Run the automatic analysis.
-4. Review the structured Markdown report.
-5. Ask the AI assistant a follow-up question.
-6. Apply a useful assistant answer back into the report.
-7. Download the final Markdown report.
+## 데모에서 보여줄 흐름
 
-## Strong Implementation Points
+1. 프로젝트를 생성하거나 기존 프로젝트를 선택합니다.
+2. 샘플 코드를 불러오거나 코드/로그 파일을 업로드합니다.
+3. 자동 분석을 실행합니다.
+4. 구조화된 Markdown 분석 리포트를 확인합니다.
+5. AI 어시스턴트에게 후속 질문을 합니다.
+6. 유용한 AI 답변을 리포트에 반영합니다.
+7. 최종 리포트를 Markdown 파일로 다운로드합니다.
 
-- FastAPI backend with authenticated project, upload, analysis, and chat APIs.
-- PostgreSQL persistence for analysis reports and chat history.
-- Server-sent events for streaming assistant responses.
-- Docker Compose environment for frontend, backend, PostgreSQL, and Redis.
-- Report refinement flow that keeps chat history separate from the canonical analysis report.
-- Frontend states for empty, loading, failed, completed, and already-applied assistant answers.
+## 주요 구현 포인트
 
-## Useful Interview Talking Points
+- FastAPI 기반 인증, 프로젝트, 업로드, 분석, 채팅 API를 구현했습니다.
+- PostgreSQL에 분석 리포트와 AI 채팅 기록을 저장합니다.
+- Server-Sent Events(SSE)로 AI 답변을 실시간 스트리밍합니다.
+- Docker Compose로 프론트엔드, 백엔드, PostgreSQL, Redis를 한 번에 실행할 수 있게 구성했습니다.
+- AI 채팅 기록과 공식 분석 리포트를 분리해 저장하고, 사용자가 선택한 답변만 리포트에 반영하도록 설계했습니다.
+- 빈 상태, 로딩, 실패, 완료, 이미 반영된 답변 같은 주요 UI 상태를 처리했습니다.
+- 리포트 반영, 중복 반영 방지, 타 사용자 분석 차단을 pytest로 검증했습니다.
 
-- Why analysis reports and chat messages are stored separately.
-- How ownership checks prevent one user from reading another user's uploads or analyses.
-- Why report updates are explicit user actions instead of automatic AI mutations.
-- How streaming improves perceived responsiveness for long AI answers.
-- What would change for production: background jobs, retry queues, observability, and stricter JSON report schemas.
+## 면접에서 설명하기 좋은 질문
+
+- 왜 AI 답변을 분석 리포트에 자동 반영하지 않았나요?
+  - AI 답변은 대화 맥락에 따라 달라질 수 있으므로, 원본 분석 리포트를 자동으로 바꾸면 추적성이 떨어집니다. 그래서 사용자가 명시적으로 선택한 답변만 리포트에 반영하도록 했습니다.
+
+- 왜 분석 리포트와 채팅 메시지를 분리해서 저장했나요?
+  - 리포트는 분석 결과의 기준 데이터이고, 채팅은 후속 탐색 기록입니다. 두 데이터를 분리하면 리포트의 신뢰성과 대화 히스토리를 각각 관리할 수 있습니다.
+
+- 왜 SSE를 사용했나요?
+  - AI 답변은 길어질 수 있어 응답 완료까지 기다리면 사용자가 느끼는 지연이 큽니다. SSE로 토큰 단위 응답을 보여주면 체감 속도가 좋아집니다.
+
+- 왜 사용자 소유권 검증이 중요한가요?
+  - 업로드 파일과 분석 결과는 사용자별 민감 데이터일 수 있습니다. 다른 사용자의 프로젝트, 업로드, 분석 결과에 접근하지 못하도록 API 계층에서 검증했습니다.
+
+- 운영 환경으로 확장한다면 무엇을 개선할 건가요?
+  - 분석 작업을 비동기 큐로 분리하고, 재시도 정책과 관측성 로그를 강화하며, Markdown 외에 구조화 JSON 스키마로 분석 결과를 저장하겠습니다.
+
+## 짧은 소개 문장
+
+AI Code & Log Analyzer는 코드와 서버 로그를 업로드하면 AI가 문제 원인, 보안 취약점, 성능 위험, 개선 방향을 분석하고, 후속 질문과 리포트 보강까지 지원하는 분석 워크스페이스입니다.
+
+## 강조할 차별점
+
+- 단순 AI 채팅이 아니라 분석 결과 저장과 리포트 보강 흐름까지 구현했습니다.
+- AI 답변이 원본 리포트를 자동으로 덮어쓰지 않도록 명시적 반영 방식을 선택했습니다.
+- 사용자별 데이터 소유권 검증과 중복 반영 방지 같은 서비스 로직을 포함했습니다.
+- Docker Compose와 최소 테스트를 추가해 재현성과 안정성을 챙겼습니다.
