@@ -1,33 +1,90 @@
 # AI Code & Log Analyzer
 
-AI 기반 코드 및 서버 로그 분석 워크스페이스입니다. 사용자가 코드나 로그를 업로드하면 OpenAI API로 문제 원인, 보안 취약점, 성능 위험, 개선 방향을 분석하고, 후속 질문과 리포트 반영까지 하나의 흐름으로 처리합니다.
+AI 기반 코드/로그 분석 워크스페이스입니다. 사용자가 코드나 서버 로그를 업로드하면 OpenAI API로 문제 원인, 보안 취약점, 성능 위험, 개선 방향을 분석하고, 분석 리포트 기반 후속 질문과 답변의 리포트 반영까지 한 흐름으로 처리합니다.
 
-이 프로젝트는 단순한 챗봇이 아니라 `업로드 -> 분석 -> 리포트 저장 -> AI 후속 질문 -> 리포트 보강 -> Markdown 다운로드`까지 이어지는 분석 제품을 목표로 만들었습니다.
+단순 챗봇이 아니라 `입력 -> 자동 분석 -> 리포트 확인 -> AI 후속 질문 -> 답변 리포트 반영 -> Markdown 다운로드`까지 이어지는 분석 도구를 목표로 만들었습니다.
+
+## 스크린샷
+
+아래 위치에 스크린샷 파일을 넣으면 README에서 바로 보입니다.
+
+```text
+docs/screenshots/
+|-- 01-landing-features.png
+|-- 02-login.png
+|-- 03-main-workspace.png
+|-- 04-analysis-report.png
+|-- 05-assistant-empty.png
+|-- 06-assistant-history.png
+`-- 07-report-appended.png
+```
+
+### 서버 첫 화면
+
+서비스 첫 진입 화면입니다. 배경 전체 화면, 핵심 feature 항목, 시작 CTA가 보이도록 캡처합니다.
+
+![서버 첫 화면](docs/screenshots/01-landing-features.png)
+
+### 로그인 화면
+
+로그인 모달, 데모 계정 안내, 로그인/회원가입 전환 UI가 보이도록 캡처합니다.
+
+![로그인 화면](docs/screenshots/02-login.png)
+
+### 메인 워크스페이스
+
+프로젝트 선택, 분석 입력 탭, 분석 히스토리, AI 채팅 패널이 한 화면에 구성된 모습을 보여주는 이미지입니다.
+
+![메인 워크스페이스](docs/screenshots/03-main-workspace.png)
+
+### 분석 리포트
+
+AI가 생성한 Markdown 분석 리포트, 요약/문제점/개선 방향/코드 블록 표시를 보여주는 이미지입니다.
+
+![분석 리포트](docs/screenshots/04-analysis-report.png)
+
+### AI 어시스턴트 첫 화면
+
+분석이 선택된 상태에서 추천 질문과 빈 대화 상태가 보이도록 캡처합니다.
+
+![AI 어시스턴트 첫 화면](docs/screenshots/05-assistant-empty.png)
+
+### AI 어시스턴트 대화 기록
+
+사용자 질문, AI 응답, 리포트 반영 버튼이 함께 보이는 대화 기록 화면입니다.
+
+![AI 어시스턴트 대화 기록](docs/screenshots/06-assistant-history.png)
+
+### 분석 리포트에 추가된 내용
+
+AI 답변이 분석 리포트에 반영된 뒤, 추가된 섹션이 리포트 안에 표시되는 화면입니다.
+
+![분석 리포트에 추가된 내용](docs/screenshots/07-report-appended.png)
 
 ## 주요 기능
 
 - 코드/로그 파일 업로드 및 텍스트 붙여넣기 분석
 - 샘플 코드 불러오기 기반 빠른 데모
 - OpenAI 기반 Markdown 분석 리포트 생성
-- 분석 히스토리 저장 및 프로젝트별 조회
+- 프로젝트별 분석 히스토리 저장 및 재조회
 - 분석 결과를 컨텍스트로 사용하는 AI 후속 질문
-- SSE(Server-Sent Events) 기반 실시간 AI 답변 스트리밍
-- AI 답변을 사용자가 선택해 리포트에 반영
-- 이미 반영한 AI 답변 중복 반영 방지
+- SSE(Server-Sent Events) 기반 실시간 AI 응답 스트리밍
+- AI 답변을 사용자가 선택해 분석 리포트에 반영
+- 이미 반영한 AI 답변의 중복 반영 방지
 - Markdown 리포트 다운로드
-- JWT 인증, 사용자별 프로젝트/업로드/분석 소유권 검증
+- JWT 인증 및 사용자별 프로젝트/업로드/분석 소유권 검증
 - Docker Compose 기반 로컬 실행 환경
 
 ## 데모 시나리오
 
-1. 회원가입 또는 로그인
-2. 프로젝트 생성 또는 선택
-3. `샘플 불러오기` 또는 코드/로그 업로드
-4. 자동 분석 실행
-5. 중앙 리포트 뷰어에서 분석 결과 확인
-6. 우측 AI 어시스턴트에 후속 질문 입력
-7. 유용한 답변을 `리포트에 반영`
-8. 완성된 리포트를 Markdown으로 다운로드
+1. 데모 계정 또는 회원가입으로 로그인합니다.
+2. 프로젝트를 생성하거나 기존 프로젝트를 선택합니다.
+3. 샘플 코드를 불러오거나 코드/로그를 붙여넣습니다.
+4. 업로드 완료 후 자동 분석이 실행됩니다.
+5. 중앙 리포트 뷰어에서 분석 결과를 확인합니다.
+6. 우측 AI 어시스턴트에서 추천 질문 또는 직접 질문을 입력합니다.
+7. 필요한 AI 답변을 `리포트에 반영`합니다.
+8. 완성된 리포트를 Markdown으로 다운로드합니다.
 
 ## 기술 스택
 
@@ -67,14 +124,14 @@ Browser
   -> OpenAI API
 ```
 
-Frontend는 인증 상태, 프로젝트 선택, 업로드, 분석 리포트 뷰어, AI 채팅 UI를 담당합니다.
+Frontend는 인증 상태, 프로젝트 선택, 입력 패널, 분석 리포트 뷰어, AI 채팅 UI를 담당합니다.
 
-Backend는 인증, 파일 저장, 분석 실행, OpenAI 호출, SSE 스트리밍, 데이터 저장, 소유권 검증을 담당합니다.
+Backend는 인증, 업로드 저장, 분석 실행, OpenAI 호출, SSE 스트리밍, 데이터 저장, 소유권 검증을 담당합니다.
 
 ## 데이터 흐름
 
 ```text
-Upload/Text Input
+Upload / Text Input
   -> uploads table
   -> analysis API
   -> OpenAI analysis prompt
@@ -142,7 +199,7 @@ data: [DONE]
 
 - `users`: 사용자 계정
 - `projects`: 사용자별 작업 공간
-- `uploads`: 업로드 파일 메타데이터
+- `uploads`: 업로드 파일 및 텍스트 입력 메타데이터
 - `analyses`: 분석 결과와 Markdown 리포트
 - `ai_messages`: 분석 기반 AI 채팅 기록
 - `token_usage`: 모델 사용량 추적
@@ -167,7 +224,7 @@ macOS/Linux 또는 Git Bash:
 cp backend/.env.example backend/.env
 ```
 
-`backend/.env`에 OpenAI API key를 설정합니다.
+`backend/.env`에 OpenAI API key와 JWT secret을 설정합니다.
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
@@ -245,12 +302,6 @@ cd frontend
 npm.cmd run typecheck
 ```
 
-Backend syntax check:
-
-```powershell
-python -m py_compile backend\app\api\routes\analysis.py backend\app\schemas\analysis.py backend\app\services\prompts.py
-```
-
 Backend tests:
 
 ```powershell
@@ -265,13 +316,13 @@ docker compose up --build -d
 
 ## 구현 포인트
 
-- 분석 리포트와 AI 채팅을 분리해 저장해 원본 분석 결과의 추적성을 유지했습니다.
+- 분석 리포트와 AI 채팅을 분리 저장해 원본 분석 결과의 추적성을 유지했습니다.
 - 리포트 반영은 사용자 명시 액션으로만 수행해 AI 답변이 자동으로 결과를 덮어쓰지 않게 했습니다.
 - 이미 반영된 답변은 UI와 API 양쪽에서 중복 반영을 막습니다.
-- 채팅은 SSE 스트리밍으로 처리해 긴 AI 답변도 즉시 표시됩니다.
-- 모든 프로젝트, 업로드, 분석 조회는 현재 사용자 소유권을 검증합니다.
-- Docker Compose로 프론트엔드, 백엔드, PostgreSQL, Redis를 한 번에 실행할 수 있습니다.
-- 리포트 반영, 중복 반영 방지, 타 사용자 분석 차단을 pytest로 검증합니다.
+- 채팅은 SSE 스트리밍으로 처리해 긴 AI 응답도 즉시 표시합니다.
+- 사용자별 프로젝트, 업로드, 분석 조회 시 소유권을 검증합니다.
+- Docker Compose로 프론트엔드, 백엔드, PostgreSQL, Redis를 한 번에 실행할 수 있게 구성했습니다.
+- 리포트 반영, 중복 반영 방지, 타 사용자 분석 차단을 pytest로 검증했습니다.
 
 ## 프로젝트 구조
 
@@ -284,15 +335,19 @@ docker compose up --build -d
 |   |   |-- models/
 |   |   |-- schemas/
 |   |   `-- services/
+|   |-- tests/
 |   |-- Dockerfile
 |   `-- requirements.txt
 |-- database/
 |   `-- schema.sql
 |-- docs/
+|   |-- screenshots/
 |   |-- API.md
 |   |-- ARCHITECTURE.md
+|   |-- AUTH_FLOW.md
 |   |-- DEPLOYMENT.md
 |   |-- PORTFOLIO_NOTES.md
+|   |-- PROMPTS.md
 |   `-- PRODUCTION.md
 |-- frontend/
 |   |-- app/
@@ -308,13 +363,12 @@ docker compose up --build -d
 
 ## 향후 개선 계획
 
-- 분석 API 테스트와 권한 검증 테스트 추가
 - 분석 작업을 Redis Queue 기반 비동기 작업으로 전환
-- 분석 결과를 Markdown뿐 아니라 구조화 JSON으로도 저장
-- Severity 자동 점수화 고도화
+- 분석 결과를 Markdown뿐 아니라 구조화된 JSON으로도 저장
+- Severity 자동 점수화 및 대시보드 고도화
 - GitHub Repository Import
-- 비용 대시보드 고도화
-- 운영 환경용 Nginx reverse proxy와 CI/CD 구성
+- 모델 사용 비용 대시보드
+- 운영 환경용 Nginx reverse proxy 및 CI/CD 구성
 
 ## 참고 문서
 
