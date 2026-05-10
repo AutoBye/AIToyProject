@@ -1,8 +1,26 @@
 "use client";
 
-import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { DragEvent, FormEvent, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
-import { Activity, Bot, CheckCircle2, FilePlus2, FileUp, History, Loader2, RotateCcw, Send, Sparkles, WalletCards, X, ArrowDownToLine } from "lucide-react";
+import {
+  Activity,
+  ArrowDownToLine,
+  Bot,
+  CheckCircle2,
+  ClipboardPaste,
+  FilePlus2,
+  FileText,
+  History,
+  Loader2,
+  MessageSquareQuote,
+  RotateCcw,
+  Send,
+  Sparkles,
+  UploadCloud,
+  User,
+  WalletCards,
+  X
+} from "lucide-react";
 import { AuthPanel } from "@/components/AuthPanel";
 import { CodeEditor, MarkdownMessage } from "@/components/CodeEditor";
 import { Shell } from "@/components/Shell";
@@ -38,6 +56,12 @@ const text = {
   noProjectHint: "\uba3c\uc800 \ud504\ub85c\uc81d\ud2b8\ub97c \uc0dd\uc131\ud558\uac70\ub098 \uc120\ud0dd\ud55c \ub4a4 \ud30c\uc77c\uc744 \uc5c5\ub85c\ub4dc\ud558\uc138\uc694.",
   dropHint: "\ud30c\uc77c\uc744 \uc5ec\uae30\uc5d0 \ub4dc\ub798\uadf8\ud574 \uc5c5\ub85c\ub4dc\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
   autoAnalysisHint: "\uc5c5\ub85c\ub4dc \ub610\ub294 \ubd99\uc5ec\ub123\uae30 \uc644\ub8cc \ud6c4 \uc790\ub3d9\uc73c\ub85c \ubd84\uc11d\uc774 \uc2dc\uc791\ub429\ub2c8\ub2e4.",
+  inputPanel: "\ubd84\uc11d \uc785\ub825",
+  inputPanelHint: "\ucf54\ub4dc\ub098 \ub85c\uadf8\ub97c \ubd99\uc5ec\ub123\uac70\ub098 \ud30c\uc77c\ub85c \uc62c\ub9ac\uba74 \uc790\ub3d9\uc73c\ub85c \ubd84\uc11d\ud569\ub2c8\ub2e4.",
+  pasteTab: "\ubd99\uc5ec\ub123\uae30",
+  fileTab: "\ud30c\uc77c \uc5c5\ub85c\ub4dc",
+  fileDropTitle: "\ud30c\uc77c\uc744 \ub193\uac70\ub098 \uc120\ud0dd\ud558\uc138\uc694",
+  fileDropDescription: "\uc18c\uc2a4 \ucf54\ub4dc, \uc11c\ubc84 \ub85c\uadf8, \uc5d0\ub7ec \uc2a4\ud0dd\uc744 \ubd84\uc11d\ud560 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
   pasteContent: "\ucf54\ub4dc/\ub85c\uadf8 \ubd99\uc5ec\ub123\uae30",
   pastePlaceholder: "\ubd84\uc11d\ud560 \ucf54\ub4dc \ub610\ub294 \ub85c\uadf8\ub97c \uc5ec\uae30\uc5d0 \ubd99\uc5ec\ub123\uc73c\uc138\uc694.",
   pasteSubmit: "\ubd99\uc5ec\ub123\uace0 \uc790\ub3d9 \ubd84\uc11d",
@@ -53,6 +77,7 @@ const text = {
   cancelComplete: "\uc5c5\ub85c\ub4dc\uc640 \ubd84\uc11d\uc744 \ucde8\uc18c\ud588\uc2b5\ub2c8\ub2e4.",
   cancelFailed: "\ucde8\uc18c \uc694\uccad \ucc98\ub9ac \uc911 \uc77c\ubd80 \uc815\ub9ac\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4.",
   noAnalysisChatHint: "\uba3c\uc800 \ubd84\uc11d\uc744 \uc2e4\ud589\ud558\uac70\ub098 \uae30\ub85d\uc5d0\uc11c \ubd84\uc11d\uc744 \uc120\ud0dd\ud558\uba74 AI \ub300\ud654\ub97c \ub0a8\uae38 \uc218 \uc788\uc2b5\ub2c8\ub2e4.",
+  suggestedQuestions: "\ucd94\ucc9c \uc9c8\ubb38",
   processing: "\ucc98\ub9ac \uc911\uc785\ub2c8\ub2e4",
   removeUpload: "\uc5c5\ub85c\ub4dc \ucde8\uc18c",
   projectNameRequired: "\ud504\ub85c\uc81d\ud2b8 \uc774\ub984\uc744 \uc785\ub825\ud574\uc57c \ud569\ub2c8\ub2e4.",
@@ -85,26 +110,11 @@ app.get("/users", async (req, res) => {
 
 app.listen(3000);`;
 
-type CodeBlock = {
-  language: string;
-  code: string;
-};
-
-function extractCodeBlocks(markdown?: string): CodeBlock[] {
-  if (!markdown) return [];
-  const blocks: CodeBlock[] = [];
-  const fencePattern = /```([a-zA-Z0-9_+.-]*)\n([\s\S]*?)```/g;
-  let match: RegExpExecArray | null;
-  while ((match = fencePattern.exec(markdown)) !== null) {
-    const code = match[2].trim();
-    if (!code) continue;
-    blocks.push({
-      language: match[1] || "text",
-      code
-    });
-  }
-  return blocks;
-}
+const suggestedQuestions = [
+  "\uac00\uc7a5 \uc704\ud5d8\ud55c \ubb38\uc81c\ubd80\ud130 \uc6b0\uc120\uc21c\uc704\ub97c \uc815\ub9ac\ud574\uc918",
+  "\ud3ec\ud2b8\ud3f4\ub9ac\uc624\uc5d0 \uc801\uae30 \uc88b\uac8c \uac1c\uc120 \ud3ec\uc778\ud2b8\ub97c \uc694\uc57d\ud574\uc918",
+  "\uc218\uc815 \uc608\uc2dc \ucf54\ub4dc\uc640 \uc774\uc720\ub97c \uac19\uc774 \ubcf4\uc5ec\uc918"
+];
 
 const kindLabel: Record<Analysis["kind"] | Upload["kind"], string> = {
   code: text.code,
@@ -155,6 +165,21 @@ function readableAnalysisTitle(item: Analysis): string {
   return `${source} ${statusLabel[item.status]}`;
 }
 
+function statusBadgeClass(status: Analysis["status"]): string {
+  if (status === "completed") return "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300";
+  if (status === "failed") return "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300";
+  if (status === "running") return "border-accent/40 bg-accent/10 text-accent";
+  return "border-border bg-surface text-slate-500";
+}
+
+function severityBadgeClass(severity?: string | null): string {
+  const value = severity?.toLowerCase() ?? "";
+  if (value.includes("critical") || value.includes("high")) return "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300";
+  if (value.includes("medium")) return "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+  if (value.includes("low")) return "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300";
+  return "border-border bg-surface text-slate-500";
+}
+
 const SELECTED_PROJECT_STORAGE_KEY = "selected_project_id";
 const SELECTED_ANALYSIS_STORAGE_KEY = "selected_analysis_id";
 
@@ -181,6 +206,7 @@ export default function Home() {
   const [actionStatus, setActionStatus] = useState<"idle" | "uploading" | "analyzing">("idle");
   const [error, setError] = useState("");
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [inputMode, setInputMode] = useState<"paste" | "file">("paste");
   const [pasteKind, setPasteKind] = useState<"code" | "log">("code");
   const [pasteContent, setPasteContent] = useState("");
   const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null);
@@ -570,22 +596,43 @@ export default function Home() {
           <section className="rounded-lg border border-border bg-panel p-4">
             <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><History size={16} /> {text.history}</h2>
             <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-              {history.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setAnalysis(item);
-                    localStorage.setItem(SELECTED_ANALYSIS_STORAGE_KEY, item.id);
-                  }}
-                  className="w-full rounded-md border border-border p-2 text-left text-xs hover:bg-surface"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-semibold">{readableAnalysisTitle(item)}</span>
-                    {item.severity && <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[11px] text-slate-500">{item.severity}</span>}
-                  </div>
-                  <div className="mt-1 truncate text-slate-500">{readableAnalysisSummary(item)}</div>
-                </button>
-              ))}
+              {history.map((item) => {
+                const isSelected = analysis?.id === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setAnalysis(item);
+                      localStorage.setItem(SELECTED_ANALYSIS_STORAGE_KEY, item.id);
+                    }}
+                    className={`w-full rounded-md border p-3 text-left text-xs transition ${
+                      isSelected ? "border-accent bg-accent/10 shadow-sm" : "border-border hover:bg-surface"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-1.5 font-semibold">
+                        <FileText size={14} className="shrink-0 text-slate-500" />
+                        <span className="truncate">{item.upload_file_name?.trim() || kindLabel[item.kind]}</span>
+                      </span>
+                      {isSelected && <CheckCircle2 size={14} className="shrink-0 text-accent" />}
+                    </div>
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      <span className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${statusBadgeClass(item.status)}`}>
+                        {statusLabel[item.status]}
+                      </span>
+                      <span className="rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
+                        {kindLabel[item.kind]}
+                      </span>
+                      {item.severity && (
+                        <span className={`rounded border px-1.5 py-0.5 text-[11px] font-semibold ${severityBadgeClass(item.severity)}`}>
+                          {item.severity}
+                        </span>
+                      )}
+                    </div>
+                    <div className="line-clamp-2 text-slate-500">{readableAnalysisSummary(item)}</div>
+                  </button>
+                );
+              })}
               {history.length === 0 && (
                 <p className="rounded-md border border-border bg-surface p-3 text-xs text-slate-500">
                   분석 기록이 아직 없습니다.
@@ -605,17 +652,11 @@ export default function Home() {
             onDragLeave={onDragLeave}
             onDrop={onDrop}
           >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <label
-                aria-disabled={!canUpload}
-                className={`flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm transition ${
-                  canUpload ? "cursor-pointer hover:bg-surface" : "cursor-not-allowed opacity-50"
-                }`}
-              >
-                <FileUp size={16} />
-                <input ref={fileInputRef} type="file" className="hidden" disabled={!canUpload} onChange={onUpload} />
-                {text.upload}
-              </label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} /> {text.inputPanel}</h2>
+                <p className="mt-1 text-sm text-slate-500">{text.inputPanelHint}</p>
+              </div>
               {(busy || upload) && (
                 <Button className="h-10 gap-2 bg-red-600 px-3 hover:bg-red-700" type="button" onClick={clearUpload}>
                   <X size={16} />
@@ -623,39 +664,75 @@ export default function Home() {
                 </Button>
               )}
             </div>
-            {canUpload && <p className="mt-3 text-sm text-slate-500">{text.dropHint}</p>}
-            {projectId && <p className="mt-2 text-sm text-slate-500">{text.autoAnalysisHint}</p>}
-            {!projectId && <p className="mt-3 text-sm text-amber-600 dark:text-amber-300">{text.noProjectHint}</p>}
-            <div className="mt-4 rounded-md border border-border bg-surface p-3">
-              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-sm font-semibold">{text.pasteContent}</h3>
-                <div className="flex gap-2">
-                  <Button className="h-9 gap-1 bg-slate-700 px-3 text-xs" disabled={busy} type="button" onClick={loadSampleContent}>
-                    <Sparkles size={14} />
-                    <span>{text.sampleLoad}</span>
-                  </Button>
-                  <select
-                    className="h-9 rounded-md border border-border bg-panel px-3 text-sm"
-                    disabled={!projectId || busy}
-                    value={pasteKind}
-                    onChange={(event) => setPasteKind(event.target.value as "code" | "log")}
-                  >
-                    <option value="code">{text.code}</option>
-                    <option value="log">{text.log}</option>
-                  </select>
-                </div>
-              </div>
-              <textarea
-                className="min-h-36 w-full resize-y rounded-md border border-border bg-panel p-3 text-sm outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!projectId || busy}
-                value={pasteContent}
-                onChange={(event) => setPasteContent(event.target.value)}
-                placeholder={text.pastePlaceholder}
-              />
-              <Button className="mt-2 w-full" disabled={!projectId || busy || !pasteContent.trim()} type="button" onClick={uploadPastedContent}>
-                {text.pasteSubmit}
-              </Button>
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-md border border-border bg-surface p-1">
+              <button
+                className={`flex h-10 items-center justify-center gap-2 rounded px-3 text-sm font-semibold transition ${
+                  inputMode === "paste" ? "bg-panel shadow-sm" : "text-slate-500 hover:bg-panel/70"
+                }`}
+                type="button"
+                onClick={() => setInputMode("paste")}
+              >
+                <ClipboardPaste size={16} />
+                <span>{text.pasteTab}</span>
+              </button>
+              <button
+                className={`flex h-10 items-center justify-center gap-2 rounded px-3 text-sm font-semibold transition ${
+                  inputMode === "file" ? "bg-panel shadow-sm" : "text-slate-500 hover:bg-panel/70"
+                }`}
+                type="button"
+                onClick={() => setInputMode("file")}
+              >
+                <UploadCloud size={16} />
+                <span>{text.fileTab}</span>
+              </button>
             </div>
+            {!projectId && <p className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">{text.noProjectHint}</p>}
+            {inputMode === "paste" ? (
+              <div className="mt-4 rounded-md border border-border bg-surface p-3">
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-sm font-semibold">{text.pasteContent}</h3>
+                  <div className="flex gap-2">
+                    <Button className="h-9 gap-1 bg-slate-700 px-3 text-xs" disabled={busy} type="button" onClick={loadSampleContent}>
+                      <Sparkles size={14} />
+                      <span>{text.sampleLoad}</span>
+                    </Button>
+                    <select
+                      className="h-9 rounded-md border border-border bg-panel px-3 text-sm"
+                      disabled={!projectId || busy}
+                      value={pasteKind}
+                      onChange={(event) => setPasteKind(event.target.value as "code" | "log")}
+                    >
+                      <option value="code">{text.code}</option>
+                      <option value="log">{text.log}</option>
+                    </select>
+                  </div>
+                </div>
+                <textarea
+                  className="min-h-44 w-full resize-y rounded-md border border-border bg-panel p-3 text-sm outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!projectId || busy}
+                  value={pasteContent}
+                  onChange={(event) => setPasteContent(event.target.value)}
+                  placeholder={text.pastePlaceholder}
+                />
+                <Button className="mt-2 w-full" disabled={!projectId || busy || !pasteContent.trim()} type="button" onClick={uploadPastedContent}>
+                  {text.pasteSubmit}
+                </Button>
+              </div>
+            ) : (
+              <label
+                aria-disabled={!canUpload}
+                className={`mt-4 flex min-h-48 flex-col items-center justify-center rounded-md border border-dashed p-6 text-center transition ${
+                  canUpload ? "cursor-pointer border-accent/50 bg-accent/5 hover:bg-accent/10" : "cursor-not-allowed border-border bg-surface opacity-60"
+                }`}
+              >
+                <input ref={fileInputRef} type="file" className="hidden" disabled={!canUpload} onChange={onUpload} />
+                <UploadCloud size={36} className="mb-3 text-accent" />
+                <span className="text-sm font-semibold">{text.fileDropTitle}</span>
+                <span className="mt-1 max-w-md text-sm text-slate-500">{text.fileDropDescription}</span>
+                {canUpload && <span className="mt-3 text-xs text-slate-500">{text.dropHint}</span>}
+              </label>
+            )}
+            {projectId && <p className="mt-3 text-sm text-slate-500">{text.autoAnalysisHint}</p>}
             {upload && (
               <div className="mt-3 flex flex-col gap-3 rounded-md border border-border bg-surface p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-slate-500">{upload.file_name} / {kindLabel[upload.kind]} / {upload.size_bytes} bytes</p>
@@ -694,6 +771,26 @@ export default function Home() {
                 <span className="whitespace-nowrap">{text.send}</span>
               </Button>
             </div>
+            {analysis?.id && (
+              <div className="mt-3">
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                  <MessageSquareQuote size={14} />
+                  <span>{text.suggestedQuestions}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {suggestedQuestions.map((question) => (
+                    <button
+                      key={question}
+                      className="w-full rounded-md border border-border bg-surface px-3 py-2 text-left text-xs text-slate-600 transition hover:border-accent hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+                      type="button"
+                      onClick={() => setChat(question)}
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
 
           <div className="mt-4 flex min-h-0 flex-1 flex-col">
@@ -706,34 +803,65 @@ export default function Home() {
             </div>
             <div ref={chatHistoryRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
               {!analysis?.id && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.noAnalysisChatHint}</p>}
-              {analysis?.id && chatMessages.length === 0 && <p className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">{text.chatHistoryEmpty}</p>}
+              {analysis?.id && chatMessages.length === 0 && (
+                <div className="rounded-md border border-border bg-surface p-3 text-sm text-slate-500">
+                  <p>{text.chatHistoryEmpty}</p>
+                  <div className="mt-3 space-y-1.5">
+                    {suggestedQuestions.map((question) => (
+                      <button
+                        key={question}
+                        className="w-full rounded-md border border-border bg-panel px-3 py-2 text-left text-xs text-slate-600 transition hover:border-accent hover:text-slate-950 dark:text-slate-300 dark:hover:text-white"
+                        type="button"
+                        onClick={() => setChat(question)}
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {chatMessages.map((message) => {
                 const isApplied = message.role === "assistant" && isAnswerAppliedToReport(message.content);
                 const isApplying = applyingMessageId === message.id;
+                const isUser = message.role === "user";
                 return (
-                  <div key={message.id} className="rounded-md border border-border bg-surface p-3 text-sm">
-                    <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold text-slate-500">
-                      <span>{message.role === "user" ? text.senderUser : text.senderAssistant}</span>
-                      {message.role === "assistant" && (
+                  <div
+                    key={message.id}
+                    className={`rounded-md border p-3 text-sm ${
+                      isUser ? "ml-8 border-accent/30 bg-accent/10" : "mr-2 border-border bg-surface"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${isUser ? "bg-accent text-white" : "bg-panel text-accent"}`}>
+                        {isUser ? <User size={13} /> : <Bot size={13} />}
+                      </span>
+                      <span>{isUser ? text.senderUser : text.senderAssistant}</span>
+                    </div>
+                    <MarkdownMessage value={message.content} />
+                    {message.role === "assistant" && (
+                      <div className="mt-3 border-t border-border pt-3">
                         <Button
-                          className="h-7 shrink-0 gap-1 bg-slate-700 px-2 text-xs disabled:bg-slate-600"
+                          className="h-8 w-full shrink-0 gap-1 bg-slate-700 px-2 text-xs disabled:bg-emerald-700"
                           disabled={isApplying || isApplied}
                           onClick={() => applyAnswerToReport(message.id, message.content)}
                           title={isApplied ? text.alreadyAppliedToReport : text.applyToReport}
                           type="button"
                         >
-                          {isApplying ? <Loader2 className="animate-spin" size={13} /> : <FilePlus2 size={13} />}
+                          {isApplying ? <Loader2 className="animate-spin" size={13} /> : isApplied ? <CheckCircle2 size={13} /> : <FilePlus2 size={13} />}
                           <span>{isApplying ? text.applyingToReport : isApplied ? text.alreadyAppliedToReport : text.applyToReport}</span>
                         </Button>
-                      )}
-                    </div>
-                    <MarkdownMessage value={message.content} />
+                      </div>
+                    )}
                   </div>
                 );
               })}
               {answer && (
-                <div className="rounded-md border border-border bg-surface p-3 text-sm">
-                  <div className="mb-1 text-xs font-semibold text-slate-500">{text.senderAssistant}</div>
+                <div className="mr-2 rounded-md border border-border bg-surface p-3 text-sm">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-panel text-accent"><Bot size={13} /></span>
+                    <span>{text.senderAssistant}</span>
+                    <Loader2 className="ml-auto animate-spin" size={13} />
+                  </div>
                   <MarkdownMessage value={answer} />
                 </div>
               )}
