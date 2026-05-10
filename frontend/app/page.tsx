@@ -4,7 +4,7 @@ import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "reac
 import type { ChangeEvent, ReactNode } from "react";
 import { Activity, Bot, FileUp, History, Loader2, Send, WalletCards, X, ArrowDownToLine } from "lucide-react";
 import { AuthPanel } from "@/components/AuthPanel";
-import { CodeEditor } from "@/components/CodeEditor";
+import { CodeEditor, MarkdownMessage } from "@/components/CodeEditor";
 import { Shell } from "@/components/Shell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -620,13 +620,13 @@ export default function Home() {
                   <div className="mb-1 text-xs font-semibold text-slate-500">
                     {message.role === "user" ? text.senderUser : text.senderAssistant}
                   </div>
-                  <p className="whitespace-pre-wrap leading-6">{message.content}</p>
+                  <MarkdownMessage value={message.content} />
                 </div>
               ))}
               {answer && (
                 <div className="rounded-md border border-border bg-surface p-3 text-sm">
                   <div className="mb-1 text-xs font-semibold text-slate-500">{text.senderAssistant}</div>
-                  <p className="whitespace-pre-wrap leading-6">{answer}</p>
+                  <MarkdownMessage value={answer} />
                 </div>
               )}
             </div>

@@ -119,6 +119,59 @@ function sectionTone(text: string): string {
   return "border-border bg-panel";
 }
 
+export function MarkdownMessage({ value }: { value: string }) {
+  const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
+  const parts = parseMarkdown(value);
+
+  async function copyCode(code: string, index: number) {
+    await navigator.clipboard.writeText(code);
+    setCopiedCodeIndex(index);
+    window.setTimeout(() => setCopiedCodeIndex(null), 1600);
+  }
+
+  return (
+    <div className="space-y-3">
+      {parts.map((part, index) => {
+        if (part.type === "heading") {
+          return <h3 key={`${part.type}-${index}`} className="text-sm font-semibold">{part.text}</h3>;
+        }
+
+        if (part.type === "list") {
+          return (
+            <ul key={`${part.type}-${index}`} className="space-y-1 text-sm leading-6">
+              {part.items.map((item, itemIndex) => (
+                <li key={`${item}-${itemIndex}`} className="flex gap-2">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (part.type === "code") {
+          return (
+            <div key={`${part.type}-${index}`} className="overflow-hidden rounded-md border border-border bg-panel">
+              <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs font-semibold text-slate-500">
+                <span>{part.language}</span>
+                <Button className="h-7 shrink-0 gap-1 bg-slate-700 px-2 text-xs" type="button" onClick={() => copyCode(part.code, index)}>
+                  {copiedCodeIndex === index ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{copiedCodeIndex === index ? "복사됨" : "복사"}</span>
+                </Button>
+              </div>
+              <pre className="max-h-72 overflow-auto p-3 text-xs leading-5">
+                <code>{part.code}</code>
+              </pre>
+            </div>
+          );
+        }
+
+        return <p key={`${part.type}-${index}`} className="whitespace-pre-wrap text-sm leading-6">{part.text}</p>;
+      })}
+    </div>
+  );
+}
+
 export function CodeEditor({ value }: { value: string }) {
   const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
   const parts = parseMarkdown(value);
